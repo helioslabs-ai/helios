@@ -13,6 +13,7 @@
       "name": "agents",
       "dependencies": {
         "@ai-sdk/anthropic": "^3.0.67",
+        "@helios/shared": "workspace:*",
         "@hono/zod-validator": "^0.7.6",
         "@noble/ed25519": "^3.0.1",
         "@noble/hashes": "^2.0.1",

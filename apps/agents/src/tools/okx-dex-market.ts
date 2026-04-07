@@ -1,27 +1,35 @@
 import { tool } from "ai";
 import { z } from "zod";
+import { cliData } from "./_cli.js";
 
-export const okxDexMarketPrice = tool({
-  description: "Get current token price on X Layer via okx-dex-market",
+export const okxMarketPrice = tool({
+  description: "Get current price of a token by contract address on X Layer.",
   parameters: z.object({
-    tokenAddress: z.string(),
-    chainIndex: z.string().default("196"),
+    address: z.string().describe("Token contract address (lowercase)"),
+    chain: z.string().default("xlayer"),
   }),
-  execute: async ({ tokenAddress, chainIndex }) => {
-    // TODO: call onchainos market_price
-    return { price: null, tokenAddress, chainIndex };
+  execute: async ({ address, chain }) => {
+    return cliData(["market", "price", "--address", address.toLowerCase(), "--chain", chain]);
   },
 });
 
-export const okxDexMarketKline = tool({
-  description: "Get K-line / OHLC chart data for a token",
+export const okxMarketKline = tool({
+  description: "Get K-line / OHLC chart data for a token. Use to assess entry timing.",
   parameters: z.object({
-    tokenAddress: z.string(),
-    chainIndex: z.string().default("196"),
-    period: z.string().default("1h"),
+    address: z.string().describe("Token contract address (lowercase)"),
+    chain: z.string().default("xlayer"),
+    period: z.string().default("1H").describe("Candle period: 1m, 5m, 15m, 1H, 4H, 1D"),
   }),
-  execute: async ({ tokenAddress, chainIndex, period }) => {
-    // TODO: call onchainos market_kline
-    return { kline: [], tokenAddress, chainIndex, period };
+  execute: async ({ address, chain, period }) => {
+    return cliData([
+      "market",
+      "kline",
+      "--address",
+      address.toLowerCase(),
+      "--chain",
+      chain,
+      "--period",
+      period,
+    ]);
   },
 });

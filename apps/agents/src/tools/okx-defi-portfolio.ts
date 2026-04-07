@@ -1,14 +1,15 @@
 import { tool } from "ai";
 import { z } from "zod";
+import { cliData } from "./_cli.js";
 
-export const okxDefiPortfolio = tool({
-  description: "Check open DeFi positions and yield status via okx-defi-portfolio",
+export const okxDefiPositions = tool({
+  description:
+    "Get all open DeFi positions for a wallet (yield positions, LP positions, lending). Use to monitor active Aave V3 deposits and check harvest readiness.",
   parameters: z.object({
-    address: z.string(),
-    chainIndex: z.string().default("196"),
+    address: z.string().describe("Wallet address"),
+    chains: z.string().default("xlayer").describe("Comma-separated chain names"),
   }),
-  execute: async ({ address, chainIndex }) => {
-    // TODO: call onchainos defi_positions
-    return { positions: [], address, chainIndex };
+  execute: async ({ address, chains }) => {
+    return cliData(["defi", "positions", "--address", address, "--chains", chains]);
   },
 });

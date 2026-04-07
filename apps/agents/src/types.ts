@@ -102,6 +102,18 @@ export type Economy = {
   perAgent: Record<AgentName, string>;
 };
 
+export type EconomyEntry = {
+  cycleId: string;
+  ts: string;
+  from: AgentName;
+  to: AgentName;
+  amount: string;
+  currency: "USDG";
+  txHash: string | null;
+  serviceUrl: string;
+  isNoAlpha: boolean;
+};
+
 export type CycleStatus = {
   swarm: {
     state: SwarmState;

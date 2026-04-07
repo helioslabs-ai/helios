@@ -1,14 +1,26 @@
 import { tool } from "ai";
 import { z } from "zod";
+import { cliData } from "./_cli.js";
 
-export const okxWalletPortfolio = tool({
-  description: "Get wallet token balances and total value via okx-wallet-portfolio",
+export const okxWalletBalances = tool({
+  description:
+    "Get token balances for a wallet address on X Layer. Returns USDC, OKB, and all held tokens with USD values.",
   parameters: z.object({
-    address: z.string(),
-    chainIndex: z.string().default("196"),
+    address: z.string().describe("Wallet address"),
+    chains: z.string().default("xlayer").describe("Comma-separated chain names"),
   }),
-  execute: async ({ address, chainIndex }) => {
-    // TODO: call onchainos portfolio_token_balances / portfolio_total_value
-    return { balances: [], totalValue: "0", address, chainIndex };
+  execute: async ({ address, chains }) => {
+    return cliData(["portfolio", "all-balances", "--address", address, "--chains", chains]);
+  },
+});
+
+export const okxWalletTotalValue = tool({
+  description: "Get total USD value of all assets in a wallet on X Layer.",
+  parameters: z.object({
+    address: z.string().describe("Wallet address"),
+    chains: z.string().default("xlayer"),
+  }),
+  execute: async ({ address, chains }) => {
+    return cliData(["portfolio", "total-value", "--address", address, "--chains", chains]);
   },
 });

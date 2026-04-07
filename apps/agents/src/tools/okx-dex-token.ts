@@ -1,37 +1,51 @@
 import { tool } from "ai";
 import { z } from "zod";
+import { cliData } from "./_cli.js";
 
-export const okxDexTokenSearch = tool({
-  description: "Search tokens on X Layer via okx-dex-token",
+export const okxTokenHotTokens = tool({
+  description:
+    "Get hot/trending tokens on X Layer ranked by trending score. Returns token list with price, market cap, liquidity, holders, and risk level.",
   parameters: z.object({
-    keyword: z.string(),
-    chainIndex: z.string().default("196"),
+    rankingType: z.string().default("4").describe("4=Trending score, 5=X/Twitter mentions"),
+    timeFrame: z.string().optional().describe("1=5min, 2=1h, 3=4h, 4=24h"),
+    riskFilter: z.string().optional().describe("true to hide risky tokens"),
   }),
-  execute: async ({ keyword, chainIndex }) => {
-    // TODO: call onchainos token_search
-    return { tokens: [], keyword, chainIndex };
+  execute: async ({ rankingType, timeFrame, riskFilter }) => {
+    const args = ["token", "hot-tokens", "--ranking-type", rankingType, "--chain", "xlayer"];
+    if (timeFrame) args.push("--time-frame", timeFrame);
+    if (riskFilter) args.push("--risk-filter", riskFilter);
+    const tokens = cliData<unknown[]>(args);
+    return { tokens, chain: "xlayer", rankingType };
   },
 });
 
-export const okxDexTokenTrending = tool({
-  description: "Get trending / hot tokens on X Layer",
+export const okxTokenAdvancedInfo = tool({
+  description:
+    "Get advanced token info: risk level, creator stats, dev holding %, top-10 holder concentration, token tags (honeypot, lowLiquidity, smartMoneyBuy). Use before trading any token.",
   parameters: z.object({
-    chainIndex: z.string().default("196"),
+    address: z.string().describe("Token contract address (lowercase)"),
+    chain: z.string().default("xlayer"),
   }),
-  execute: async ({ chainIndex }) => {
-    // TODO: call onchainos token_trending
-    return { trending: [], chainIndex };
+  execute: async ({ address, chain }) => {
+    return cliData([
+      "token",
+      "advanced-info",
+      "--address",
+      address.toLowerCase(),
+      "--chain",
+      chain,
+    ]);
   },
 });
 
-export const okxDexTokenHolders = tool({
-  description: "Get token holder distribution for risk analysis",
+export const okxTokenPriceInfo = tool({
+  description:
+    "Get detailed price info: price, 24h change, market cap, liquidity, volume, holder count.",
   parameters: z.object({
-    tokenAddress: z.string(),
-    chainIndex: z.string().default("196"),
+    address: z.string().describe("Token contract address (lowercase)"),
+    chain: z.string().default("xlayer"),
   }),
-  execute: async ({ tokenAddress, chainIndex }) => {
-    // TODO: call onchainos token_holders
-    return { holders: [], tokenAddress, chainIndex };
+  execute: async ({ address, chain }) => {
+    return cliData(["token", "price-info", "--address", address.toLowerCase(), "--chain", chain]);
   },
 });
