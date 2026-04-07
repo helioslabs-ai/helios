@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Env files — never commit real secrets
+.env
+.env.local
+.env.*.local
+
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+
+# Bun
+bun.lockb
+
+# Runtime data files written by agents each cycle
+apps/agents/src/data/*.json
+apps/agents/src/data/*.jsonl
+
+# Logs
+*.log
+/tmp/helios-*.log
+
+# Claude Code session files — private, not for VCS
+.claude/
+
+# Reference/example files — not part of the project
+.resources/
+.examples/
+
+# OS
+.DS_Store
+Thumbs.db
