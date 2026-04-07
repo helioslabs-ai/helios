@@ -1,52 +1,62 @@
-# Task Plan: Phase 2 — Wire Live OKX Skills + Deploy
+# Task Plan: Phase 3 — Dashboard + Contract Deploy + First Live Cycle
 
 ## Goal
-All 14 OKX tool stubs wired to real OnchainOS APIs, x402 payments functional, HeliosRegistry deployed to X Layer, 4 Agentic Wallets created and funded — end-to-end cycle test passes.
+War room dashboard live, HeliosRegistry deployed, first live agent cycle running on X Layer.
 
-## Prerequisites (user must complete)
+## Prerequisites
 
-| What | Command / Action | Status |
-|---|---|---|
-| 4 Agentic Wallets | `onchainos wallet create --name curator` (×4) | ❌ |
-| Fund wallets | Send $4/$4/$1/$1 USDC + OKB for gas on X Layer | ❌ |
-| Anthropic API key | Set `ANTHROPIC_API_KEY` in `.env` | ❌ |
-| Supabase project | Create project, get URL + anon key | ❌ |
+| What | Status |
+|---|---|
+| `ANTHROPIC_API_KEY` in `.env` | ❌ missing |
+| `UNISWAP_API_KEY` in `.env` | ❌ missing |
+| Fund Curator wallet — USDC + OKB on X Layer | ❌ |
+| Fund Executor wallet — USDC + OKB on X Layer | ❌ |
+| `DEPLOYER_PRIVATE_KEY` for forge deploy | ❌ |
 
-## Features / Steps
+## Completed (Phase 2)
 
-- [x] Step 3: Wire OKX auth — shared `_cli.ts` helper (spawnSync onchainos CLI)
-- [x] Step 4: Wire Strategist tools (6 files) — okx-dex-signal, okx-dex-token, okx-dex-market, okx-dex-trenches, okx-defi-invest, okx-defi-portfolio
-- [x] Step 5: Wire Sentinel tools — okx-security, okx-dex-token
-- [x] Step 6: Wire Executor tools — okx-dex-swap, okx-onchain-gateway, okx-defi-invest
-- [x] Step 7: Wire Curator tools — okx-agentic-wallet, okx-wallet-portfolio, okx-audit-log
-- [x] Step 8: Wire x402 payments — `packages/shared/src/payments.ts` — settleX402 (client) + okxVerifyX402Payment + okxSettleX402Payment + buildPaymentResponse
-- [x] Step 9: Wire x402-gated Hono routes — /agents/strategist/scan, /agents/sentinel/assess, /agents/executor/deploy — all fully gated
-- [x] Step 10: Wire Curator cycle loop — index.ts builds AgentConfigs from env, curator.ts calls settleX402 per agent per cycle + writes economy_log.jsonl
-- [x] Step 11: Wire Uniswap Trading API — uniswap-trading-api.ts wired (direct REST to trade-api.gateway.uniswap.org)
-- [x] Step 12: Wire HeliosRegistry logging — registry.ts calls logCycle() via viem after each cycle (no-op if HELIOS_REGISTRY_ADDRESS not set)
-- [x] Step 13 (tools/registry): tools/registry.ts — per-agent tool sets for strategist/sentinel/executor/curator
-- [ ] Step 1: Deploy HeliosRegistry.sol to X Layer — `forge script script/Deploy.s.sol --rpc-url $XLAYER_RPC_URL --broadcast` (blocked: needs funded deployer)
-- [ ] Step 2: Register 4 agents on-chain — call `registerAgent()` for each wallet (blocked: wallets not created)
-- [ ] Step 13: End-to-end cycle test — trigger one manual cycle, verify: scan → assess → deploy/park → x402 → registry log (blocked: wallets + env vars)
+- [x] `_cli.ts` shared spawnSync helper
+- [x] All 14 OKX tool stubs wired to onchainos CLI
+- [x] `tools/registry.ts` — per-agent tool sets
+- [x] `packages/shared/payments.ts` — full x402 client + server helpers
+- [x] `routes/strategist.ts` — x402-gated scan route
+- [x] `routes/sentinel.ts` — x402-gated assess route
+- [x] `routes/executor.ts` — x402-gated deploy route
+- [x] `agents/curator.ts` — settleX402 HTTP calls + economy_log.jsonl
+- [x] `registry.ts` — viem logCycle() to HeliosRegistry.sol
+- [x] `index.ts` — buildAgentConfigs from env + cycle loop
+- [x] `routes/api.ts` — /economy, /positions, /logs, /agents, /sse
+- [x] OKX Agentic Wallets × 4 created, written to .env
+- [x] README Agent Onchain Identities table with OKX Explorer links
+- [x] SKILL.md, AGENTS.md, DESIGN.md written
+- [x] Git initialized + committed
+
+## Phase 3 Steps
+
+- [ ] Step 1: Deploy HeliosRegistry.sol to X Layer
+  ```
+  cd contracts
+  forge script script/Deploy.s.sol --rpc-url $XLAYER_RPC_URL --broadcast
+  ```
+  → set `HELIOS_REGISTRY_ADDRESS` in `.env`
+
+- [ ] Step 2: Register 4 agents on-chain
+  → curator calls `registerAgent()` for each wallet via viem
+
+- [ ] Step 3: Add missing env vars (`ANTHROPIC_API_KEY`, `UNISWAP_API_KEY`)
+
+- [ ] Step 4: Fund wallets on X Layer, set `ENABLE_AGENTS=true`
+
+- [ ] Step 5: First live cycle — `bun dev`, POST /api/cycle, watch logs
+
+- [ ] Step 6: Build war room dashboard (`apps/web`)
+  - Agent Status cards (name, address, balance, last action)
+  - Cycle Feed (action, txHashes, timestamp)
+  - Economy view (x402 payments, total USDG paid)
+  - Circuit Breaker banner
+  - Position table
+
+- [ ] Step 7: Git push to github.com/lucent-labs/helios
 
 ## Current
-**Working on**: Phase 3 — Dashboard (apps/web) + Contract deploy
-**Status**: Core agent runtime fully wired. Blocked on wallet creation + deployment for e2e test.
-
-## Next Session
-1. User: run `onchainos wallet create --name curator/strategist/sentinel/executor` × 4
-2. User: fund wallets (see README.md for amounts)
-3. User: fill `.env` with wallet addresses, account IDs, Anthropic key
-4. Set `ENABLE_AGENTS=true` → `bun dev` → watch first cycle
-5. Build war room dashboard in `apps/web`
-6. Deploy HeliosRegistry.sol to X Layer
-
-## Decisions
-- `_cli.ts` shared helper uses spawnSync to call onchainos CLI — handles OKX HMAC auth internally
-- x402 payments: `settleX402` probes → gets 402 → signs via onchainos CLI → replays
-- Routes build agent configs from env vars directly — no shared state needed
-- HeliosRegistry logging is fire-and-forget (non-fatal — won't break cycle if contract not deployed)
-- ENABLE_AGENTS=false by default — manual cycle trigger via POST /api/cycle
-
-## Errors
-- (none — all 8 files biome-formatted, server boots clean)
+**Status:** Phase 2 complete. Blocked on API keys + wallet funding for Phase 3.

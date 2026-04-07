@@ -138,13 +138,22 @@ Post-exit:
 
 ## Deployments
 
-| Contract / Agent   | Address | Network       |
+### Contracts
+
+| Contract           | Address | Network       |
 | ------------------ | ------- | ------------- |
-| HeliosRegistry.sol |         | X Layer (196) |
-| Curator wallet     |         | X Layer (196) |
-| Strategist wallet  |         | X Layer (196) |
-| Sentinel wallet    |         | X Layer (196) |
-| Executor wallet    |         | X Layer (196) |
+| HeliosRegistry.sol | _pending deploy_ | X Layer (196) |
+
+### Agent Onchain Identities
+
+Four OKX TEE Agentic Wallets — each agent has its own sovereign identity and USDG revenue stream.
+
+| Agent      | Role                                          | X Layer Address                                                                                                                                         |
+| ---------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Curator    | Orchestrator — cycle loop, pays agents        | [0x258e3035...af0d2c](https://www.okx.com/web3/explorer/xlayer/address/0x258e3035242a05b53ca82c5dffeaeadee2af0d2c) |
+| Strategist | Alpha scanner — x402 paid per scan            | [0x473308cf...13277d](https://www.okx.com/web3/explorer/xlayer/address/0x473308cf1778c6c717116f48ebd18e419013277d) |
+| Sentinel   | Risk gate — x402 paid per assessment          | [0x31a0b567...4254f](https://www.okx.com/web3/explorer/xlayer/address/0x31a0b567118235daa01490d1c751128d3874254f)  |
+| Executor   | Trade + yield executor — x402 paid per deploy | [0x075a7b84...5480c](https://www.okx.com/web3/explorer/xlayer/address/0x075a7b84336ed268df32a76f2a2c7c119ba5480c)  |
 
 ---
 
@@ -213,11 +222,11 @@ bun install
 cp .env.example apps/agents/.env
 # Fill in: OKX credentials, 4 wallet IDs, Anthropic key, Supabase
 
-# Create agent wallets
-onchainos wallet create --name curator
-onchainos wallet create --name strategist
-onchainos wallet create --name sentinel
-onchainos wallet create --name executor
+# Create agent wallets (login first, then add 4 accounts)
+onchainos wallet login <your-okx-email>
+onchainos wallet verify <otp>
+onchainos wallet add   # repeat 4 times, one per agent
+onchainos wallet addresses  # grab accountId + X Layer address for each
 
 # Deploy HeliosRegistry to X Layer
 cd contracts
