@@ -84,12 +84,12 @@ Helios deploys four sovereign AI agents — each with its own OKX TEE Agentic Wa
 
 ### Agent Swarm
 
-| Agent          | Wallet        | Role                                                               | OKX Skills                                                                                   | Earns                 |
+| Agent          | Wallet        | Role                                                              | OKX Skills                                                                                   | Earns                 |
 | -------------- | ------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- | --------------------- |
-| **Curator**    | TEE wallet #4 | Orchestrates cycles, pays agents, manages circuit breaker          | okx-agentic-wallet, okx-defi-portfolio, okx-wallet-portfolio, okx-audit-log                  | —                     |
-| **Strategist** | TEE wallet #2 | Scans yield + trading signals, returns best opportunity            | okx-dex-signal, okx-dex-token, okx-dex-market, okx-dex-trenches, okx-dex-ws, okx-defi-invest | 0.001 USDG/scan       |
-| **Sentinel**   | TEE wallet #3 | Risk-scores opportunities, re-evaluates open positions every cycle | okx-security, okx-dex-token                                                                  | 0.001 USDG/assessment |
-| **Executor**   | TEE wallet #1 | Executes swaps, parks yield in Aave V3, settles x402 payments      | okx-dex-swap, okx-onchain-gateway, okx-x402-payment                                          | 0.001 USDG/deploy     |
+| **Curator**    | `0x075a7b84...` (TEE #4) | Orchestrates cycles, pays agents, manages circuit breaker          | okx-agentic-wallet, okx-defi-portfolio, okx-wallet-portfolio, okx-audit-log                  | —                     |
+| **Strategist** | `0x473308cf...` (TEE #2) | Scans yield + trading signals, returns best opportunity            | okx-dex-signal, okx-dex-token, okx-dex-market, okx-dex-trenches, okx-dex-ws, okx-defi-invest | 0.001 USDG/scan       |
+| **Sentinel**   | `0x31a0b567...` (TEE #3) | Risk-scores opportunities, re-evaluates open positions every cycle | okx-security, okx-dex-token                                                                  | 0.001 USDG/assessment |
+| **Executor**   | `0x258e3035...` (TEE #1) | Executes swaps, parks yield in Aave V3, settles x402 payments      | okx-dex-swap, okx-onchain-gateway, okx-x402-payment                                          | 0.001 USDG/deploy     |
 
 ### Economy Loop
 
@@ -140,20 +140,20 @@ Post-exit:
 
 ### Contracts
 
-| Contract           | Address          | Network       |
-| ------------------ | ---------------- | ------------- |
-| HeliosRegistry.sol | _pending deploy_ | X Layer (196) |
+| Contract           | Address                                        | Network       | Explorer                                                                                                              |
+| ------------------ | ---------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------- |
+| HeliosRegistry.sol | `0x5b5F83A465EF625B7d2E6a26c848517fD31D0bb3`   | X Layer (196) | [OKLink ↗](https://www.oklink.com/xlayer/address/0x5b5F83A465EF625B7d2E6a26c848517fD31D0bb3)                         |
 
 ### Agent Onchain Identities
 
 Four OKX TEE Agentic Wallets — each agent has its own sovereign identity and USDG revenue stream.
 
-| Agent      | Role                                          | Agentic Wallet                                                                                                     |
-| ---------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Curator    | Orchestrator — cycle loop, pays agents        | [0x075a7b84...5480c](https://www.okx.com/web3/explorer/xlayer/address/0x075a7b84336ed268df32a76f2a2c7c119ba5480c) |
-| Strategist | Alpha scanner — x402 paid per scan            | [0x473308cf...13277d](https://www.okx.com/web3/explorer/xlayer/address/0x473308cf1778c6c717116f48ebd18e419013277d) |
-| Sentinel   | Risk gate — x402 paid per assessment          | [0x31a0b567...4254f](https://www.okx.com/web3/explorer/xlayer/address/0x31a0b567118235daa01490d1c751128d3874254f)  |
-| Executor   | Trade + yield executor — x402 paid per deploy | [0x258e3035...af0d2c](https://www.okx.com/web3/explorer/xlayer/address/0x258e3035242a05b53ca82c5dffeaeadee2af0d2c) |
+| Agent      | Role                                          | Wallet Address                                                                                                          | Registration Tx                                                                                                                  |
+| ---------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Curator    | Orchestrator — cycle loop, pays agents        | [0x075a7b84...5480c](https://www.oklink.com/xlayer/address/0x075a7b84336ed268df32a76f2a2c7c119ba5480c)                  | [0x66ca90d6...](https://www.oklink.com/xlayer/tx/0x66ca90d6af7f94cc96bd8d1fdc581e876c218cc639d3c17db913b860415f7f1e)            |
+| Strategist | Alpha scanner — x402 paid per scan            | [0x473308cf...277d](https://www.oklink.com/xlayer/address/0x473308cf1778c6c717116f48ebd18e419013277d)                   | [0xb3ce2c66...](https://www.oklink.com/xlayer/tx/0xb3ce2c669be28f4812fdb24b8fd3cd8f8857e2820735aa602b7bc03f21a07048)            |
+| Sentinel   | Risk gate — x402 paid per assessment          | [0x31a0b567...254f](https://www.oklink.com/xlayer/address/0x31a0b567118235daa01490d1c751128d3874254f)                   | [0xe3f2d075...](https://www.oklink.com/xlayer/tx/0xe3f2d07567b25be09d2ce827ecc9cd081d53d8dc2b2ced90713df148da4b041d)            |
+| Executor   | Trade + yield executor — x402 paid per deploy | [0x258e3035...0d2c](https://www.oklink.com/xlayer/address/0x258e3035242a05b53ca82c5dffeaeadee2af0d2c)                   | [0x780a0b61...](https://www.oklink.com/xlayer/tx/0x780a0b61eb12cc15f7bed3348c05f17c1509c6f3a78a04500bb3d2b55fdc58f4)            |
 
 ---
 
@@ -220,7 +220,7 @@ cd helios-buildx
 bun install
 
 cp .env.example apps/agents/.env
-# Fill in: OKX credentials, 4 wallet IDs, Anthropic key, Supabase
+# Fill in: OKX credentials, 4 wallet IDs, OpenAI key, Supabase DATABASE_URL
 
 # Create agent wallets (login first, then add 4 accounts)
 onchainos wallet login <your-okx-email>
@@ -251,7 +251,7 @@ cp .mcp.json.example .mcp.json
 ### Running the Dashboard
 
 ```bash
-cd apps/web
+cd apps/dashboard
 bun dev       # port 3000
 bun build     # production build
 ```
@@ -263,14 +263,15 @@ bun build     # production build
 ```
 helios-buildx/
 ├── apps/
-│   ├── web/                  # Next.js 16 war room dashboard (Vercel)
+│   ├── dashboard/            # Next.js 16 war room dashboard (Vercel)
 │   └── agents/               # Bun agent runtime (Railway)
 │       ├── src/
 │       │   ├── agents/       # curator.ts · strategist.ts · sentinel.ts · executor.ts
-│       │   ├── tools/        # 14 OKX OnchainOS tool wrappers + uniswap-trading-api.ts
+│       │   ├── tools/        # 15 OKX OnchainOS tool wrappers + uniswap-trading-api.ts
 │       │   ├── prompts/      # per-agent system prompts + budget context builders
 │       │   ├── routes/       # x402-gated Hono routes + REST API
-│       │   ├── ai/           # Anthropic AI SDK setup
+│       │   ├── ai/           # OpenAI gpt-4o via AI SDK + tool.ts compat wrapper
+│       │   ├── db/           # Drizzle client + schema (cycles, economy, positions)
 │       │   ├── memory/       # CycleContext builder (reads jsonl logs)
 │       │   ├── wallet/       # OKX wallet client
 │       │   ├── data/         # state.json · positions.json · cycle_log.jsonl
@@ -279,13 +280,12 @@ helios-buildx/
 │       │   ├── index.ts      # entry — Curator loop + Hono server
 │       │   └── types.ts      # shared types
 │       └── watchdog.ts       # process monitor
-├── contracts/                # Foundry — HeliosRegistry.sol
+├── contracts/                # Foundry — HeliosRegistry.sol (deployed + verified)
 ├── packages/
 │   ├── shared/               # payments.ts · guardrails.ts · sizing.ts · chains.ts
 │   ├── cli/                  # helios CLI (8 commands)
 │   └── mcp/                  # stdio MCP server (6 tools)
-├── SKILL.md                  # Installable skill definition
-├── .mcp.json.example         # MCP config template
+├── scripts/                  # register-agents.sh + other reusable scripts
 └── .env.example
 ```
 
@@ -303,7 +303,7 @@ helios-buildx/
 | Wallets        | OKX TEE Agentic Wallet × 4 (one per agent)        |
 | Payments       | OKX x402 REST APIs (EIP-3009 USDG)                |
 | Blockchain     | X Layer (chainId 196), viem                       |
-| AI Reasoning   | claude-sonnet-4-6 via AI SDK — ReAct tool calling |
+| AI Reasoning   | OpenAI gpt-4o via AI SDK — ReAct tool calling     |
 | MCP Server     | Custom stdio MCP (`packages/mcp/`)                |
 | DEX            | OKX DEX Aggregator + Uniswap Trading API          |
 
