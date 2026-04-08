@@ -1,4 +1,5 @@
-import type { CoreTool } from "ai";
+import type { Tool } from "ai";
+
 import { okxDexSignal, okxSmartMoneyTracker } from "./okx-dex-signal.js";
 import { okxTokenHotTokens, okxTokenAdvancedInfo, okxTokenPriceInfo } from "./okx-dex-token.js";
 import { okxMarketPrice, okxMarketKline } from "./okx-dex-market.js";
@@ -12,7 +13,7 @@ import { okxWalletBalances, okxWalletTotalValue } from "./okx-wallet-portfolio.j
 import { okxAuditLog } from "./okx-audit-log.js";
 import { uniswapQuote } from "./uniswap-trading-api.js";
 
-export const strategistTools: Record<string, CoreTool> = {
+export const strategistTools: Record<string, Tool> = {
   okxDexSignal,
   okxSmartMoneyTracker,
   okxTokenHotTokens,
@@ -25,14 +26,14 @@ export const strategistTools: Record<string, CoreTool> = {
   uniswapQuote,
 };
 
-export const sentinelTools: Record<string, CoreTool> = {
+export const sentinelTools: Record<string, Tool> = {
   okxSecurityTokenScan,
   okxTokenAdvancedInfo,
   okxTokenPriceInfo,
   okxMarketPrice,
 };
 
-export const executorTools: Record<string, CoreTool> = {
+export const executorTools: Record<string, Tool> = {
   okxSwapQuote,
   okxSwapExecute,
   okxGatewayGas,
@@ -43,7 +44,7 @@ export const executorTools: Record<string, CoreTool> = {
   okxDefiCollect,
 };
 
-export const curatorTools: Record<string, CoreTool> = {
+export const curatorTools: Record<string, Tool> = {
   okxWalletBalances,
   okxWalletTotalValue,
   okxAuditLog,

@@ -1,4 +1,4 @@
-import { tool } from "ai";
+import { tool } from "../ai/tool.js";
 import { z } from "zod";
 import { cliData } from "./_cli.js";
 

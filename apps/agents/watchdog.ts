@@ -1,15 +1,27 @@
-/**
- * Watchdog — monitors agent process + Hono API server.
- * Runs as a separate process outside src/.
- *
- * Checks every 30 minutes:
- * - Is the Hono API responding on /health?
- * - Is the last cycle < 2h stale?
- */
+import { spawn } from "node:child_process";
+import { resolve } from "node:path";
 
 const API_URL = process.env.API_URL ?? "http://localhost:3001";
 const CHECK_INTERVAL_MS = 30 * 60 * 1000;
 const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000;
+const ENTRY = resolve(import.meta.dir, "src/index.ts");
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let agentProcess: any = null;
+
+function startAgent() {
+  console.log("[Watchdog] Starting agent process:", ENTRY);
+  agentProcess = spawn("bun", ["run", ENTRY], {
+    stdio: "inherit",
+    env: process.env,
+  });
+
+  agentProcess.on("exit", (code: number | null, signal: string | null) => {
+    console.error(`[Watchdog] Agent exited — code=${code} signal=${signal}. Restarting in 5s…`);
+    agentProcess = null;
+    setTimeout(startAgent, 5_000);
+  });
+}
 
 async function checkHealth(): Promise<boolean> {
   try {
@@ -33,23 +45,35 @@ async function checkStaleness(): Promise<boolean> {
   }
 }
 
-async function run() {
-  console.log("[Watchdog] Started — checking every 30min");
-
-  setInterval(async () => {
-    const healthy = await checkHealth();
-    if (!healthy) {
-      console.error("[Watchdog] API not responding — restart needed");
-      // TODO: restart agent process
-      return;
-    }
-
-    const stale = await checkStaleness();
-    if (stale) {
-      console.warn("[Watchdog] Last cycle is stale (>2h) — restart needed");
-      // TODO: restart agent process
-    }
-  }, CHECK_INTERVAL_MS);
+function restartAgent(reason: string) {
+  console.error(`[Watchdog] Restarting agent — ${reason}`);
+  if (agentProcess) {
+    agentProcess.removeAllListeners("exit");
+    agentProcess.kill("SIGTERM");
+    agentProcess = null;
+  }
+  setTimeout(startAgent, 2_000);
 }
 
-run();
+async function check() {
+  if (!agentProcess) {
+    console.warn("[Watchdog] Agent process not running — starting");
+    startAgent();
+    return;
+  }
+
+  const healthy = await checkHealth();
+  if (!healthy) {
+    restartAgent("API not responding on /health");
+    return;
+  }
+
+  const stale = await checkStaleness();
+  if (stale) {
+    restartAgent("Last cycle is stale (>2h) — hung process");
+  }
+}
+
+console.log("[Watchdog] Started — checking every 30min");
+startAgent();
+setInterval(check, CHECK_INTERVAL_MS);

@@ -10,6 +10,54 @@ export type DeployResult = {
   reasoning: string;
 };
 
+const DECISION_PROMPT = `
+After executing all required tool calls, output your result as a JSON block inside <RESULT> tags:
+
+<RESULT>
+{
+  "action": "buy" | "yield_park" | "sell",
+  "txHash": "0x... or null",
+  "token": "TOKEN_SYMBOL or null",
+  "sizeUsdc": "amount string or null",
+  "reasoning": "One sentence summary of what was executed"
+}
+</RESULT>
+
+Rules:
+- Set txHash to the actual transaction hash returned by gateway broadcast / swap execute
+- action must match what was actually executed
+- If execution failed, set txHash to null and explain in reasoning
+`;
+
+function parseResult(text: string): DeployResult {
+  const match = text.match(/<RESULT>\s*([\s\S]*?)\s*<\/RESULT>/);
+  if (!match) {
+    return {
+      action: "yield_park",
+      txHash: null,
+      reasoning: "Could not parse result block",
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(match[1]) as Partial<DeployResult>;
+    const action = parsed.action;
+    return {
+      action: action === "buy" || action === "sell" ? action : "yield_park",
+      txHash: parsed.txHash ?? null,
+      token: parsed.token ?? undefined,
+      sizeUsdc: parsed.sizeUsdc ?? undefined,
+      reasoning: parsed.reasoning ?? "",
+    };
+  } catch {
+    return {
+      action: "yield_park",
+      txHash: null,
+      reasoning: "JSON parse failed",
+    };
+  }
+}
+
 export async function runExecutorDeploy(
   config: AgentConfig,
   instruction: string,
@@ -24,17 +72,12 @@ export async function runExecutorDeploy(
   const result = await generateText({
     apiKey: config.llm.apiKey,
     system: EXECUTOR_SYSTEM_PROMPT,
-    prompt: `${budget}\n\nExecute this instruction:\n${instruction}\n\nUse the swap and gateway tools. Return the txHash.`,
+    prompt: `${budget}\n\nExecute this instruction:\n${instruction}\n\nUse swap and gateway tools. ${DECISION_PROMPT}`,
     tools: config.tools,
     maxSteps: 10,
   });
 
-  // TODO: parse structured output from result.text
-  return {
-    action: "yield_park",
-    txHash: null,
-    reasoning: result.text,
-  };
+  return parseResult(result.text);
 }
 
 export async function exitPosition(

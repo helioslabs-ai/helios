@@ -61,7 +61,7 @@ Add to your `.mcp.json` or Claude Code settings:
 }
 ```
 
-> A `.mcp.json.example` is included at the repo root — copy it to `.mcp.json` to connect automatically.
+> A `.mcp.json` is included at the repo root — copy it to `.mcp.json` to connect automatically.
 
 **Requires:** A running Helios agent runtime (`cd apps/agents && bun dev`).
 

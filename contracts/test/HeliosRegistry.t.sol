@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity 0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {HeliosRegistry} from "../src/HeliosRegistry.sol";
@@ -15,6 +15,10 @@ contract HeliosRegistryTest is Test {
 
     function setUp() public {
         registry = new HeliosRegistry();
+    }
+
+    function test_OwnerIsSet() public view {
+        assertEq(registry.OWNER(), owner);
     }
 
     function test_RegisterAgent() public {
@@ -79,6 +83,12 @@ contract HeliosRegistryTest is Test {
 
         HeliosRegistry.Agent memory agent = registry.getAgent(curator);
         assertEq(agent.cycleCount, 1);
+    }
+
+    function test_OwnerCanLogCycleWithoutRegistration() public {
+        // owner (deployer) should be able to call logCycle without being a registered agent
+        registry.logCycle("yield_park", "0xdeployer");
+        assertEq(registry.totalCycles(), 1);
     }
 
     function test_RevertLogCycleUnregistered() public {

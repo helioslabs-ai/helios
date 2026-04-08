@@ -1,19 +1,19 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
-import type { CoreTool } from "ai";
-import { generateText as aiGenerateText } from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
+import { generateText as aiGenerateText, stepCountIs } from "ai";
+import type { Tool } from "ai";
 
-const MODEL_ID = "claude-sonnet-4-6" as const;
+const MODEL_ID = "gpt-4o" as const;
 
 export function createModel(apiKey: string) {
-  const anthropic = createAnthropic({ apiKey });
-  return anthropic(MODEL_ID);
+  const openai = createOpenAI({ apiKey });
+  return openai(MODEL_ID);
 }
 
 export async function generateText(params: {
   apiKey: string;
   system: string;
   prompt: string;
-  tools?: Record<string, CoreTool>;
+  tools?: Record<string, Tool>;
   maxSteps?: number;
 }) {
   const model = createModel(params.apiKey);
@@ -22,6 +22,6 @@ export async function generateText(params: {
     system: params.system,
     prompt: params.prompt,
     tools: params.tools,
-    maxSteps: params.maxSteps ?? 10,
+    stopWhen: stepCountIs(params.maxSteps ?? 10),
   });
 }

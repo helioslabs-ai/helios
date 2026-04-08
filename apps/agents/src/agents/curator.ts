@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { settleX402 } from "@helios/shared/payments";
 import { logCycleOnChain } from "../registry.js";
 import { buildCycleContext } from "../memory/index.js";
+import { getDb } from "../db/client.js";
+import { cycles, economyEntries } from "../db/schema/index.js";
 import {
   incrementCycle,
   isHalted,
@@ -35,6 +37,23 @@ type EconomyLogEntry = {
 
 function appendEconomyLog(entry: EconomyLogEntry): void {
   appendFileSync(join(DATA_DIR, "economy_log.jsonl"), `${JSON.stringify(entry)}\n`);
+  const db = getDb();
+  if (db) {
+    db.insert(economyEntries)
+      .values({
+        id: crypto.randomUUID(),
+        cycleId: entry.cycleId,
+        ts: new Date(entry.ts),
+        from: entry.from,
+        to: entry.to,
+        amount: entry.amount,
+        currency: entry.currency,
+        txHash: entry.txHash,
+        serviceUrl: entry.serviceUrl,
+        isNoAlpha: entry.isNoAlpha,
+      })
+      .catch(() => {});
+  }
 }
 
 export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
@@ -95,6 +114,7 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
 
   const scan = scanResult.body as {
     topToken?: string | null;
+    topContract?: string | null;
     recommendation?: string;
     compositeScore?: number;
     signalCount?: number;
@@ -107,7 +127,7 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
   if (scan.recommendation === "trade" && scan.topToken) {
     // Phase 3: Sentinel assessment via x402
     setState("SENTINEL_CHECK");
-    const assessUrl = `${API_URL}/agents/sentinel/assess?token=${encodeURIComponent(scan.topToken)}&contract=`;
+    const assessUrl = `${API_URL}/agents/sentinel/assess?token=${encodeURIComponent(scan.topToken)}&contract=${encodeURIComponent(scan.topContract ?? "")}`;
     const assessResult = await settleX402(assessUrl, curatorAddress);
 
     appendEconomyLog({
@@ -191,6 +211,19 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
 
   const summary: CycleSummary = { id: cycleId, ts, action, reasoning, txHashes };
   appendFileSync(join(DATA_DIR, "cycle_log.jsonl"), `${JSON.stringify(summary)}\n`);
+
+  const db = getDb();
+  if (db) {
+    db.insert(cycles)
+      .values({
+        id: cycleId,
+        ts: new Date(ts),
+        action,
+        reasoning,
+        txHashes,
+      })
+      .catch(() => {});
+  }
 
   // Log to HeliosRegistry on-chain (non-blocking, non-fatal)
   logCycleOnChain({ action, txHashes }).catch(() => {});

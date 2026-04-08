@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 
 const ONCHAINOS = process.env.ONCHAINOS_BIN ?? "onchainos";
 
-export function cli(args: string[]): unknown {
+export function cli(args: string[]): Record<string, unknown> {
   const result = spawnSync(ONCHAINOS, args, {
     encoding: "utf8",
     env: {
@@ -23,7 +23,8 @@ export function cli(args: string[]): unknown {
   if (!raw) return {};
 
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : { value: parsed };
   } catch {
     return { raw };
   }

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Self-Sustaining Multi-Agent DeFi Economy.</strong><br/>
- An autonomous DeFi portfolio manager where capital never stops working. Four sovereign AI agents, each with its own wallet and on-chain identity, continuously find yield, execute trades, harvest returns, and compound profits on X Layer — paying one another via x402 micropayments in a self-sustaining on-chain economy. No humans in the loop.
+ An autonomous DeFi portfolio manager where capital never stops working. Four sovereign AI agents, each with its own wallet and on-chain identity, continuously find yield, execute trades, harvest returns, and compound profits on X Layer — paying one another via x402 micropayments in a self-sustaining on-chain economy. No human intervention.
 </p>
 
 <p align="center">
@@ -86,10 +86,10 @@ Helios deploys four sovereign AI agents — each with its own OKX TEE Agentic Wa
 
 | Agent          | Wallet        | Role                                                               | OKX Skills                                                                                   | Earns                 |
 | -------------- | ------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- | --------------------- |
-| **Curator**    | TEE wallet #1 | Orchestrates cycles, pays agents, manages circuit breaker          | okx-agentic-wallet, okx-defi-portfolio, okx-wallet-portfolio, okx-audit-log                  | —                     |
+| **Curator**    | TEE wallet #4 | Orchestrates cycles, pays agents, manages circuit breaker          | okx-agentic-wallet, okx-defi-portfolio, okx-wallet-portfolio, okx-audit-log                  | —                     |
 | **Strategist** | TEE wallet #2 | Scans yield + trading signals, returns best opportunity            | okx-dex-signal, okx-dex-token, okx-dex-market, okx-dex-trenches, okx-dex-ws, okx-defi-invest | 0.001 USDG/scan       |
 | **Sentinel**   | TEE wallet #3 | Risk-scores opportunities, re-evaluates open positions every cycle | okx-security, okx-dex-token                                                                  | 0.001 USDG/assessment |
-| **Executor**   | TEE wallet #4 | Executes swaps, parks yield in Aave V3, settles x402 payments      | okx-dex-swap, okx-onchain-gateway, okx-x402-payment                                          | 0.001 USDG/deploy     |
+| **Executor**   | TEE wallet #1 | Executes swaps, parks yield in Aave V3, settles x402 payments      | okx-dex-swap, okx-onchain-gateway, okx-x402-payment                                          | 0.001 USDG/deploy     |
 
 ### Economy Loop
 
@@ -140,20 +140,20 @@ Post-exit:
 
 ### Contracts
 
-| Contract           | Address | Network       |
-| ------------------ | ------- | ------------- |
+| Contract           | Address          | Network       |
+| ------------------ | ---------------- | ------------- |
 | HeliosRegistry.sol | _pending deploy_ | X Layer (196) |
 
 ### Agent Onchain Identities
 
 Four OKX TEE Agentic Wallets — each agent has its own sovereign identity and USDG revenue stream.
 
-| Agent      | Role                                          | X Layer Address                                                                                                                                         |
-| ---------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Curator    | Orchestrator — cycle loop, pays agents        | [0x258e3035...af0d2c](https://www.okx.com/web3/explorer/xlayer/address/0x258e3035242a05b53ca82c5dffeaeadee2af0d2c) |
+| Agent      | Role                                          | Agentic Wallet                                                                                                     |
+| ---------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Curator    | Orchestrator — cycle loop, pays agents        | [0x075a7b84...5480c](https://www.okx.com/web3/explorer/xlayer/address/0x075a7b84336ed268df32a76f2a2c7c119ba5480c) |
 | Strategist | Alpha scanner — x402 paid per scan            | [0x473308cf...13277d](https://www.okx.com/web3/explorer/xlayer/address/0x473308cf1778c6c717116f48ebd18e419013277d) |
 | Sentinel   | Risk gate — x402 paid per assessment          | [0x31a0b567...4254f](https://www.okx.com/web3/explorer/xlayer/address/0x31a0b567118235daa01490d1c751128d3874254f)  |
-| Executor   | Trade + yield executor — x402 paid per deploy | [0x075a7b84...5480c](https://www.okx.com/web3/explorer/xlayer/address/0x075a7b84336ed268df32a76f2a2c7c119ba5480c)  |
+| Executor   | Trade + yield executor — x402 paid per deploy | [0x258e3035...af0d2c](https://www.okx.com/web3/explorer/xlayer/address/0x258e3035242a05b53ca82c5dffeaeadee2af0d2c) |
 
 ---
 
@@ -209,7 +209,7 @@ IDLE → STRATEGIST_SCAN → SENTINEL_CHECK → EXECUTOR_DEPLOY → COMPOUNDING 
 - [Foundry](https://getfoundry.sh) (`foundryup`)
 - OKX account with API key (OnchainOS access)
 - OKX Agentic Wallet × 4 (one per agent role)
-- Anthropic API key
+- OpenAI API key (`gpt-4o`)
 - Supabase project
 
 ### Installation

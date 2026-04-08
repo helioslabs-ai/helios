@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity 0.8.24;
 
 /// @title HeliosRegistry — Agent identity + cycle logging on X Layer
 /// @notice Registers 4 agent wallets and logs every cycle for onchain proof of work
@@ -47,7 +47,7 @@ contract HeliosRegistry {
 
     // ─── State ──────────────────────────────────────────────────────────
 
-    address public immutable owner;
+    address public immutable OWNER;
     bool public paused;
 
     mapping(address => Agent) public agents;
@@ -59,7 +59,7 @@ contract HeliosRegistry {
     // ─── Modifiers ──────────────────────────────────────────────────────
 
     modifier onlyOwner() {
-        if (msg.sender != owner) revert NotOwner();
+        if (msg.sender != OWNER) revert NotOwner();
         _;
     }
 
@@ -68,15 +68,16 @@ contract HeliosRegistry {
         _;
     }
 
-    modifier onlyRegistered() {
-        if (!agents[msg.sender].active) revert NotRegistered();
+    /// @dev Allows either the owner (deployer) or a registered active agent to log cycles
+    modifier canLog() {
+        if (msg.sender != OWNER && !agents[msg.sender].active) revert NotRegistered();
         _;
     }
 
     // ─── Constructor ────────────────────────────────────────────────────
 
     constructor() {
-        owner = msg.sender;
+        OWNER = msg.sender;
     }
 
     // ─── Agent Management ───────────────────────────────────────────────
@@ -116,7 +117,7 @@ contract HeliosRegistry {
     function logCycle(
         string calldata action,
         string calldata txHashes
-    ) external whenNotPaused onlyRegistered {
+    ) external whenNotPaused canLog {
         uint256 cycleIndex = cycles.length;
 
         cycles.push(CycleLog({

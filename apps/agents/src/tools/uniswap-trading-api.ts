@@ -1,4 +1,4 @@
-import { tool } from "ai";
+import { tool } from "../ai/tool.js";
 import { z } from "zod";
 
 const UNISWAP_API_BASE = "https://trade-api.gateway.uniswap.org/v1";

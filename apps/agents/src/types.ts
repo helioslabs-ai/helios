@@ -1,4 +1,4 @@
-import type { CoreTool } from "ai";
+import type { Tool } from "ai";
 import type { Address } from "viem";
 
 export type AgentName = "curator" | "strategist" | "sentinel" | "executor";
@@ -25,9 +25,9 @@ export type AgentConfig = {
     accountId: string;
     address: Address;
   };
-  tools: Record<string, CoreTool>;
+  tools: Record<string, Tool>;
   llm: {
-    model: "claude-sonnet-4-6";
+    model: string;
     apiKey: string;
   };
   prompts: {

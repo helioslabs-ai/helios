@@ -9,7 +9,7 @@ import type { AgentConfig, AgentName } from "./types.js";
 const PORT = Number(process.env.API_URL?.split(":").pop()) || 3001;
 const ENABLE_AGENTS = process.env.ENABLE_AGENTS === "true";
 const INTERVAL_MS = (Number(process.env.CHECK_INTERVAL_MINUTES) || 60) * 60 * 1000;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? "";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? "";
 
 console.log(`[Helios] Starting on port ${PORT}`);
 console.log(`[Helios] Agents: ${ENABLE_AGENTS ? "enabled" : "disabled"}`);
@@ -24,7 +24,7 @@ function buildAgentConfigs(): Record<AgentName, AgentConfig> {
         address: (process.env.CURATOR_WALLET_ADDRESS ?? "") as `0x${string}`,
       },
       tools: curatorTools,
-      llm: { model: "claude-sonnet-4-6", apiKey: ANTHROPIC_API_KEY },
+      llm: { model: "gpt-4o", apiKey: OPENAI_API_KEY },
       prompts: { strategy: "", budget: "" },
     },
     strategist: {
@@ -34,7 +34,7 @@ function buildAgentConfigs(): Record<AgentName, AgentConfig> {
         address: (process.env.STRATEGIST_WALLET_ADDRESS ?? "") as `0x${string}`,
       },
       tools: strategistTools,
-      llm: { model: "claude-sonnet-4-6", apiKey: ANTHROPIC_API_KEY },
+      llm: { model: "gpt-4o", apiKey: OPENAI_API_KEY },
       prompts: {
         strategy: STRATEGIST_SYSTEM_PROMPT,
         budget: buildStrategistBudget({
@@ -51,7 +51,7 @@ function buildAgentConfigs(): Record<AgentName, AgentConfig> {
         address: (process.env.SENTINEL_WALLET_ADDRESS ?? "") as `0x${string}`,
       },
       tools: sentinelTools,
-      llm: { model: "claude-sonnet-4-6", apiKey: ANTHROPIC_API_KEY },
+      llm: { model: "gpt-4o", apiKey: OPENAI_API_KEY },
       prompts: { strategy: SENTINEL_SYSTEM_PROMPT, budget: "" },
     },
     executor: {
@@ -61,7 +61,7 @@ function buildAgentConfigs(): Record<AgentName, AgentConfig> {
         address: (process.env.EXECUTOR_WALLET_ADDRESS ?? "") as `0x${string}`,
       },
       tools: executorTools,
-      llm: { model: "claude-sonnet-4-6", apiKey: ANTHROPIC_API_KEY },
+      llm: { model: "gpt-4o", apiKey: OPENAI_API_KEY },
       prompts: {
         strategy: EXECUTOR_SYSTEM_PROMPT,
         budget: buildExecutorBudget({

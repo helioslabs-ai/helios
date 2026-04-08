@@ -1,4 +1,4 @@
-import { tool } from "ai";
+import { tool } from "../ai/tool.js";
 import { z } from "zod";
 import { cli } from "./_cli.js";
 

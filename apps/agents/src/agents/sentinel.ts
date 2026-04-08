@@ -9,6 +9,53 @@ export type AssessmentResult = {
   reasoning: string;
 };
 
+const DECISION_PROMPT = `
+After running all security tools, output your final verdict as a JSON block inside <VERDICT> tags:
+
+<VERDICT>
+{
+  "verdict": "CLEAR" | "BLOCK",
+  "riskScore": 0,
+  "flags": [],
+  "reasoning": "One sentence summary"
+}
+</VERDICT>
+
+Rules:
+- BLOCK if: honeypot detected, riskScore < 75, holder concentration > 50%, liquidity < $5k, security scan returns "block"
+- CLEAR only if all checks pass AND riskScore >= 75
+- riskScore: 0-100, higher = safer
+`;
+
+function parseVerdict(text: string): AssessmentResult {
+  const match = text.match(/<VERDICT>\s*([\s\S]*?)\s*<\/VERDICT>/);
+  if (!match) {
+    return {
+      verdict: "BLOCK",
+      riskScore: 0,
+      flags: ["parse_error"],
+      reasoning: "Could not parse verdict — defaulting to BLOCK",
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(match[1]) as Partial<AssessmentResult>;
+    return {
+      verdict: parsed.verdict === "CLEAR" ? "CLEAR" : "BLOCK",
+      riskScore: parsed.riskScore ?? 0,
+      flags: Array.isArray(parsed.flags) ? parsed.flags : [],
+      reasoning: parsed.reasoning ?? "",
+    };
+  } catch {
+    return {
+      verdict: "BLOCK",
+      riskScore: 0,
+      flags: ["parse_error"],
+      reasoning: "JSON parse failed — defaulting to BLOCK",
+    };
+  }
+}
+
 export async function runSentinelAssessment(
   config: AgentConfig,
   token: string,
@@ -17,24 +64,18 @@ export async function runSentinelAssessment(
 ): Promise<AssessmentResult> {
   const budget = buildSentinelBudget({
     openPositions: JSON.stringify(cycleContext.openPositions),
-    riskThreshold: 70,
+    riskThreshold: 75,
   });
 
   const result = await generateText({
     apiKey: config.llm.apiKey,
     system: SENTINEL_SYSTEM_PROMPT,
-    prompt: `${budget}\n\nAssess this trade opportunity:\n- Token: ${token}\n- Contract: ${contractAddress}\n\nRun security scan and holder analysis. Return CLEAR or BLOCK with reasoning.`,
+    prompt: `${budget}\n\nAssess this opportunity:\n- Token: ${token}\n- Contract: ${contractAddress}\n\nRun security scan and holder analysis. ${DECISION_PROMPT}`,
     tools: config.tools,
     maxSteps: 10,
   });
 
-  // TODO: parse structured output from result.text
-  return {
-    verdict: "BLOCK",
-    riskScore: 0,
-    flags: [],
-    reasoning: result.text,
-  };
+  return parseVerdict(result.text);
 }
 
 export async function reScorePositions(

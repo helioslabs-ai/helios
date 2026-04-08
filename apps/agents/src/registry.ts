@@ -4,7 +4,7 @@ import { xlayer } from "@helios/shared/chains";
 
 const REGISTRY_ABI = parseAbi([
   "function logCycle(string calldata action, string calldata txHashes) external",
-  "function registerAgent(address agent, string calldata role) external",
+  "function registerAgent(address wallet, uint8 role) external",
 ]);
 
 /**
@@ -17,7 +17,7 @@ export async function logCycleOnChain(opts: {
   txHashes: string[];
 }): Promise<string | null> {
   const registryAddress = process.env.HELIOS_REGISTRY_ADDRESS as `0x${string}` | undefined;
-  const privateKey = process.env.CURATOR_PRIVATE_KEY as `0x${string}` | undefined;
+  const privateKey = process.env.DEPLOYER_PRIVATE_KEY as `0x${string}` | undefined;
 
   if (!registryAddress || !privateKey) return null;
 
