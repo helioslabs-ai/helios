@@ -1,4 +1,4 @@
-# Task Plan: Phase 4 — Live Cycle + Dashboard + Deploy
+# Task Plan Helios v1: Phase 4 — Live Cycle + Dashboard + Deploy
 
 ## Goal
 First live cycle running on X Layer, war room dashboard live on Vercel, agents running on Railway.
