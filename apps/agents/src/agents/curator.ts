@@ -206,6 +206,9 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
     recordNoAlpha();
   }
 
+  if (action === "buy") {
+    setState("COMPOUNDING");
+  }
   setState("IDLE");
   incrementCycle();
 

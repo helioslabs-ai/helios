@@ -2,7 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { getState } from "../state.js";
+import { runCycle } from "../agents/curator.js";
+import { buildAgentConfigs } from "../config.js";
+import { getState, isHalted, tripCircuitBreaker } from "../state.js";
 import type { AgentName, CycleSummary, EconomyEntry, Position } from "../types.js";
 
 const DATA_DIR = join(import.meta.dir, "../data");
@@ -85,8 +87,18 @@ api.get("/agents", (c) => {
 });
 
 api.post("/cycle", async (c) => {
+  const state = getState();
+  if (state.swarmState !== "IDLE") {
+    return c.json({ status: "busy", swarmState: state.swarmState }, 409);
+  }
+  if (isHalted()) {
+    return c.json({ status: "halted", reason: state.circuitBreaker.reason }, 503);
+  }
   const cycleId = crypto.randomUUID();
-  // Fire-and-forget — actual cycle runs in background; caller tracks via /logs
+  runCycle(buildAgentConfigs()).catch((err) => {
+    console.error("[API] Manual cycle failed:", err);
+    tripCircuitBreaker(err instanceof Error ? err.message : "Manual cycle error");
+  });
   return c.json({ status: "triggered", cycleId });
 });
 

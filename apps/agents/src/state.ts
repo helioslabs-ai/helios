@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { GUARDRAILS } from "@helios/shared/guardrails";
 import type { CircuitBreaker, SwarmState } from "./types.js";
 
 const STATE_PATH = join(import.meta.dir, "data/state.json");
@@ -71,14 +72,16 @@ export function resetNoAlpha(): void {
 
 export function tripCircuitBreaker(reason: string): void {
   const state = load();
+  const consecutiveFailures = state.circuitBreaker.consecutiveFailures + 1;
+  const halted = consecutiveFailures >= GUARDRAILS.CIRCUIT_BREAKER_MAX_FAILURES;
   save({
     ...state,
     swarmState: "IDLE",
     circuitBreaker: {
-      halted: true,
-      reason,
-      consecutiveFailures: state.circuitBreaker.consecutiveFailures + 1,
-      haltedAt: new Date().toISOString(),
+      halted,
+      reason: halted ? reason : state.circuitBreaker.reason,
+      consecutiveFailures,
+      haltedAt: halted ? new Date().toISOString() : state.circuitBreaker.haltedAt,
     },
   });
 }

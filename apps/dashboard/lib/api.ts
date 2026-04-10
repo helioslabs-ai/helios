@@ -10,11 +10,11 @@ import type {
 const SERVER_API = process.env.API_URL ?? "http://localhost:3001";
 
 export function getSseUrl(): string {
-  return `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}/sse`;
+  return `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}/api/sse`;
 }
 
 export function getCycleUrl(): string {
-  return `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}/cycle`;
+  return `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}/api/cycle`;
 }
 
 export function getOkLinkTxUrl(txHash: string): string {
@@ -58,11 +58,11 @@ const DEFAULT_POSITIONS: PositionsData = {
 
 export async function fetchDashboardData(): Promise<DashboardData> {
   const [status, agentsData, economy, logsData, positions] = await Promise.all([
-    fetchJson<SwarmStatus>("/status", DEFAULT_STATUS),
-    fetchJson<{ agents: AgentInfo[] }>("/agents", { agents: [] }),
-    fetchJson<EconomyData>("/economy", DEFAULT_ECONOMY),
-    fetchJson<LogsData>("/logs?n=50", { cycles: [], count: 0 }),
-    fetchJson<PositionsData>("/positions", DEFAULT_POSITIONS),
+    fetchJson<SwarmStatus>("/api/status", DEFAULT_STATUS),
+    fetchJson<{ agents: AgentInfo[] }>("/api/agents", { agents: [] }),
+    fetchJson<EconomyData>("/api/economy", DEFAULT_ECONOMY),
+    fetchJson<LogsData>("/api/logs?n=50", { cycles: [], count: 0 }),
+    fetchJson<PositionsData>("/api/positions", DEFAULT_POSITIONS),
   ]);
 
   return {
