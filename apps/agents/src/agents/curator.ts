@@ -1,4 +1,4 @@
-import { appendFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { settleX402 } from "@helios/shared/payments";
 import { getDb } from "../db/client.js";
@@ -6,6 +6,7 @@ import { cycles, economyEntries } from "../db/schema/index.js";
 import { buildCycleContext } from "../memory/index.js";
 import { logCycleOnChain } from "../registry.js";
 import {
+  getState,
   incrementCycle,
   isHalted,
   recordNoAlpha,
@@ -13,7 +14,7 @@ import {
   setState,
   tripCircuitBreaker,
 } from "../state.js";
-import type { AgentConfig, AgentName, CycleSummary } from "../types.js";
+import type { AgentConfig, AgentName, CycleSummary, Position } from "../types.js";
 import { getAllBalances } from "../wallet/index.js";
 import { exitPosition } from "./executor.js";
 import { reScorePositions } from "./sentinel.js";
@@ -231,7 +232,49 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
   // Log to HeliosRegistry on-chain (non-blocking, non-fatal)
   logCycleOnChain({ action, txHashes }).catch(() => {});
 
+  // Post stats to leaderboard registry (non-blocking, non-fatal)
+  postRegistryStats(configs).catch(() => {});
+
   return summary;
+}
+
+async function postRegistryStats(configs: AgentConfigs): Promise<void> {
+  const state = getState();
+  const cycleLogs = (() => {
+    const path = join(DATA_DIR, "cycle_log.jsonl");
+    if (!existsSync(path)) return [] as CycleSummary[];
+    return readFileSync(path, "utf-8")
+      .split("\n")
+      .filter(Boolean)
+      .map((l) => JSON.parse(l) as CycleSummary);
+  })();
+  const positions = (() => {
+    const path = join(DATA_DIR, "positions.json");
+    if (!existsSync(path)) return [] as Position[];
+    try { return JSON.parse(readFileSync(path, "utf-8")) as Position[]; } catch { return []; }
+  })();
+
+  const tradeCount = cycleLogs.filter((c) => c.action === "buy").length;
+  const pnlUsdc = positions
+    .filter((p) => p.status === "closed" && p.pnlPct !== undefined)
+    .reduce((acc, p) => acc + (p.pnlPct! / 100) * Number.parseFloat(p.sizeUsdc), 0);
+  const returnPct = (pnlUsdc / 10.0) * 100;
+  const status = state.circuitBreaker.halted ? "halted" : "active";
+
+  await fetch(`${API_URL}/api/registry`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      swarmName: process.env.SWARM_NAME ?? "helios-genesis",
+      model: "gpt-4o",
+      curatorAddress: configs.curator.wallet.address.toLowerCase(),
+      returnPct: returnPct.toFixed(4),
+      pnlUsdc: pnlUsdc.toFixed(4),
+      tradeCount,
+      cycleCount: state.totalCycles,
+      status,
+    }),
+  });
 }
 
 export function startCycleLoop(configs: AgentConfigs, intervalMs: number): NodeJS.Timer {

@@ -86,6 +86,20 @@ export function tripCircuitBreaker(reason: string): void {
   });
 }
 
+export function haltSwarm(reason: string): void {
+  const state = load();
+  save({
+    ...state,
+    swarmState: "IDLE",
+    circuitBreaker: {
+      ...state.circuitBreaker,
+      halted: true,
+      reason,
+      haltedAt: new Date().toISOString(),
+    },
+  });
+}
+
 export function resetCircuitBreaker(): void {
   const state = load();
   save({

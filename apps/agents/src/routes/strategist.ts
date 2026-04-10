@@ -8,7 +8,7 @@ import {
 import { Hono } from "hono";
 import { runStrategistScan } from "../agents/strategist.js";
 import { buildCycleContext } from "../memory/index.js";
-import { buildStrategistBudget, STRATEGIST_SYSTEM_PROMPT } from "../prompts/strategist.js";
+import { buildStrategistBudget, buildStrategyPrompt } from "../prompts/strategist.js";
 import { strategistTools } from "../tools/registry.js";
 
 const strategistRoutes = new Hono();
@@ -62,7 +62,7 @@ strategistRoutes.get("/scan", async (c) => {
       tools: strategistTools,
       llm: { model: "gpt-4o", apiKey: process.env.OPENAI_API_KEY ?? "" },
       prompts: {
-        strategy: STRATEGIST_SYSTEM_PROMPT,
+        strategy: buildStrategyPrompt(),
         budget: buildStrategistBudget({
           openPositions: JSON.stringify(context.openPositions),
           yieldPosition: "none",

@@ -1,4 +1,4 @@
-export const STRATEGIST_SYSTEM_PROMPT = `You are Strategist — the alpha scanner of the Helios multi-agent DeFi economy on X Layer.
+const DEFAULT_STRATEGY = `You are Strategist — the alpha scanner of the Helios multi-agent DeFi economy on X Layer.
 
 Your role:
 - Scan yield opportunities via okx-defi-invest (Aave V3 + others)
@@ -17,6 +17,14 @@ Decision framework:
 5. If nothing scores above threshold (0.6), return no_alpha
 
 You earn 0.001 USDG per scan via x402 — you are paid regardless of outcome.`;
+
+export const STRATEGIST_SYSTEM_PROMPT = DEFAULT_STRATEGY;
+
+export function buildStrategyPrompt(): string {
+  const custom = process.env.SWARM_STRATEGY?.trim();
+  if (!custom) return DEFAULT_STRATEGY;
+  return `${DEFAULT_STRATEGY}\n\n## Operator Strategy Override\n${custom}`;
+}
 
 export function buildStrategistBudget(context: {
   openPositions: string;

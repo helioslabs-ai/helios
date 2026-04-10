@@ -3,10 +3,15 @@ import { Command } from "commander";
 import { agentsCommand } from "./commands/agents.js";
 import { cycleCommand } from "./commands/cycle.js";
 import { economyCommand } from "./commands/economy.js";
+import { guardrailsCommand } from "./commands/guardrails.js";
 import { logsCommand } from "./commands/logs.js";
 import { positionsCommand } from "./commands/positions.js";
+import { seedCommand } from "./commands/seed.js";
 import { setupCommand } from "./commands/setup.js";
+import { startCommand } from "./commands/start.js";
 import { statusCommand } from "./commands/status.js";
+import { stopCommand } from "./commands/stop.js";
+import { strategyCommand } from "./commands/strategy.js";
 
 const program = new Command();
 
@@ -48,5 +53,30 @@ program
   .command("agents")
   .description("Agent addresses, balances, last action")
   .action(() => agentsCommand(program.opts()));
+
+program
+  .command("seed")
+  .description("Print funding table for all 4 agent wallets")
+  .action(seedCommand);
+
+program
+  .command("start")
+  .description("Register swarm on leaderboard and trigger first cycle")
+  .action(startCommand);
+
+program
+  .command("stop")
+  .description("Halt the swarm (operator stop)")
+  .action(stopCommand);
+
+program
+  .command("strategy")
+  .description("Update the swarm strategy injected into the Strategist each cycle")
+  .action(strategyCommand);
+
+program
+  .command("guardrails")
+  .description("Update max trade size, max loss, and cycle interval")
+  .action(guardrailsCommand);
 
 program.parse();

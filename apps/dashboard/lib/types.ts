@@ -94,3 +94,17 @@ export interface DashboardData {
   cycles: CycleSummary[];
   positions: PositionsData;
 }
+
+export interface LeaderboardEntry {
+  id: string;
+  swarmName: string;
+  model: string | null;
+  curatorAddress: string;
+  returnPct: string;
+  pnlUsdc: string;
+  tradeCount: number;
+  cycleCount: number;
+  status: string;
+  registeredAt: string;
+  lastUpdated: string;
+}

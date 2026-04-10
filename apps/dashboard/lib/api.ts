@@ -2,6 +2,7 @@ import type {
   AgentInfo,
   DashboardData,
   EconomyData,
+  LeaderboardEntry,
   LogsData,
   PositionsData,
   SwarmStatus,
@@ -72,4 +73,19 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     cycles: logsData.cycles,
     positions,
   };
+}
+
+export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
+  const data = await fetchJson<{ swarms: LeaderboardEntry[] }>("/api/registry", { swarms: [] });
+  return data.swarms;
+}
+
+export async function fetchSwarm(address: string): Promise<LeaderboardEntry | null> {
+  try {
+    const res = await fetch(`${SERVER_API}/api/registry/${address}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return res.json() as Promise<LeaderboardEntry>;
+  } catch {
+    return null;
+  }
 }

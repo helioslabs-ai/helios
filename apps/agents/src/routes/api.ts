@@ -1,10 +1,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { eq, desc } from "drizzle-orm";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { runCycle } from "../agents/curator.js";
 import { buildAgentConfigs } from "../config.js";
-import { getState, isHalted, tripCircuitBreaker } from "../state.js";
+import { getDb } from "../db/client.js";
+import { heliosRegistry } from "../db/schema/index.js";
+import type { HeliosRegistryInsert } from "../db/schema/index.js";
+import { getState, haltSwarm, isHalted, tripCircuitBreaker } from "../state.js";
 import type { AgentName, CycleSummary, EconomyEntry, Position } from "../types.js";
 
 const DATA_DIR = join(import.meta.dir, "../data");
@@ -100,6 +104,89 @@ api.post("/cycle", async (c) => {
     tripCircuitBreaker(err instanceof Error ? err.message : "Manual cycle error");
   });
   return c.json({ status: "triggered", cycleId });
+});
+
+api.get("/registry", async (c) => {
+  const db = getDb();
+  if (!db) return c.json({ swarms: [] });
+  const rows = await db
+    .select()
+    .from(heliosRegistry)
+    .orderBy(desc(heliosRegistry.returnPct));
+  const swarms = rows.map((r) => ({
+    id: r.id,
+    swarmName: r.isPrivate ? "Private agent" : r.swarmName,
+    model: r.isPrivate ? null : r.model,
+    curatorAddress: r.curatorAddress,
+    returnPct: r.returnPct,
+    pnlUsdc: r.pnlUsdc,
+    tradeCount: r.tradeCount,
+    cycleCount: r.cycleCount,
+    status: r.status,
+    registeredAt: r.registeredAt,
+    lastUpdated: r.lastUpdated,
+  }));
+  return c.json({ swarms });
+});
+
+api.get("/registry/:address", async (c) => {
+  const address = c.req.param("address").toLowerCase();
+  const db = getDb();
+  if (!db) return c.json({ error: "DB unavailable" }, 503);
+  const rows = await db
+    .select()
+    .from(heliosRegistry)
+    .where(eq(heliosRegistry.curatorAddress, address));
+  if (!rows[0]) return c.json({ error: "Not found" }, 404);
+  const r = rows[0];
+  return c.json({
+    id: r.id,
+    swarmName: r.isPrivate ? "Private agent" : r.swarmName,
+    model: r.isPrivate ? null : r.model,
+    curatorAddress: r.curatorAddress,
+    returnPct: r.returnPct,
+    pnlUsdc: r.pnlUsdc,
+    tradeCount: r.tradeCount,
+    cycleCount: r.cycleCount,
+    status: r.status,
+    isPrivate: r.isPrivate,
+    registeredAt: r.registeredAt,
+    lastUpdated: r.lastUpdated,
+  });
+});
+
+api.post("/registry", async (c) => {
+  const body = await c.req.json<HeliosRegistryInsert>();
+  if (!body.curatorAddress) return c.json({ error: "curatorAddress required" }, 400);
+  const db = getDb();
+  if (!db) return c.json({ error: "DB unavailable" }, 503);
+  await db
+    .insert(heliosRegistry)
+    .values({
+      ...body,
+      curatorAddress: body.curatorAddress.toLowerCase(),
+      lastUpdated: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: heliosRegistry.curatorAddress,
+      set: {
+        swarmName: body.swarmName,
+        model: body.model,
+        returnPct: body.returnPct ?? "0",
+        pnlUsdc: body.pnlUsdc ?? "0",
+        tradeCount: body.tradeCount ?? 0,
+        cycleCount: body.cycleCount ?? 0,
+        status: body.status ?? "active",
+        lastUpdated: new Date(),
+      },
+    });
+  return c.json({ ok: true });
+});
+
+api.post("/halt", async (c) => {
+  const body = await c.req.json<{ reason?: string }>().catch(() => ({ reason: undefined }));
+  haltSwarm((body as { reason?: string }).reason ?? "operator halt");
+  return c.json({ ok: true, halted: true });
 });
 
 api.get("/sse", (c) => {

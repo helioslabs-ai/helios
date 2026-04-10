@@ -24,10 +24,46 @@ function writeEnv(values: Record<string, string>) {
   writeFileSync(ENV_PATH, `${lines.join("\n")}\n`);
 }
 
+const DEFAULT_STRATEGY =
+  "Scan for high-momentum tokens on X Layer DEXs. Focus on tokens with positive signal score, adequate liquidity, and clean security audit. Park idle capital in Aave V3 when no clear alpha.";
+
 export async function setupCommand() {
   p.intro("Helios Setup");
 
   const existing = readEnv();
+
+  const swarm = await p.group(
+    {
+      swarmName: () =>
+        p.text({
+          message: "Swarm name",
+          placeholder: "helios-genesis",
+          initialValue: existing.SWARM_NAME ?? "helios-genesis",
+        }),
+      strategy: () =>
+        p.text({
+          message: "Strategy (enter for default)",
+          placeholder: DEFAULT_STRATEGY,
+          initialValue: existing.SWARM_STRATEGY ?? DEFAULT_STRATEGY,
+        }),
+      maxPositionUsd: () =>
+        p.text({
+          message: "Max Trade Size (USDC)",
+          initialValue: existing.MAX_POSITION_USD ?? "1.00",
+        }),
+      maxSessionLossUsd: () =>
+        p.text({
+          message: "Max Total Loss (USDC)",
+          initialValue: existing.MAX_SESSION_LOSS_USD ?? "2.00",
+        }),
+    },
+    {
+      onCancel: () => {
+        p.cancel("Setup cancelled");
+        process.exit(0);
+      },
+    },
+  );
 
   const okx = await p.group(
     {
@@ -131,6 +167,10 @@ export async function setupCommand() {
   );
 
   writeEnv({
+    SWARM_NAME: swarm.swarmName as string,
+    SWARM_STRATEGY: swarm.strategy as string,
+    MAX_POSITION_USD: swarm.maxPositionUsd as string,
+    MAX_SESSION_LOSS_USD: swarm.maxSessionLossUsd as string,
     XLAYER_RPC_URL: "https://rpc.xlayer.tech",
     OKX_API_KEY: okx.apiKey as string,
     OKX_SECRET_KEY: okx.secretKey as string,
