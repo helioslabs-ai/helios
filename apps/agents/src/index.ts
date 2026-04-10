@@ -2,7 +2,7 @@ import { runCycle, startCycleLoop } from "./agents/curator.js";
 import { app } from "./app.js";
 import { buildAgentConfigs } from "./config.js";
 
-const PORT = Number(process.env.API_URL?.split(":").pop()) || 3001;
+const PORT = Number(process.env.PORT) || 3001;
 const ENABLE_AGENTS = process.env.ENABLE_AGENTS === "true";
 const INTERVAL_MS = (Number(process.env.CHECK_INTERVAL_MINUTES) || 60) * 60 * 1000;
 

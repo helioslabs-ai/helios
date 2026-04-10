@@ -1,0 +1,59 @@
+services:
+  - type: web
+    name: helios-agents
+    runtime: bun
+    rootDir: .
+    buildCommand: bun install
+    startCommand: bun run apps/agents/src/index.ts
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ENABLE_AGENTS
+        value: "false"
+      - key: CHECK_INTERVAL_MINUTES
+        value: "60"
+      - key: XLAYER_RPC_URL
+        value: https://rpc.xlayer.tech
+      - key: API_URL
+        sync: false
+      - key: OKX_PROJECT_ID
+        sync: false
+      - key: OKX_API_KEY
+        sync: false
+      - key: OKX_SECRET_KEY
+        sync: false
+      - key: OKX_PASSPHRASE
+        sync: false
+      - key: CURATOR_ACCOUNT_ID
+        sync: false
+      - key: CURATOR_WALLET_ADDRESS
+        sync: false
+      - key: STRATEGIST_ACCOUNT_ID
+        sync: false
+      - key: STRATEGIST_WALLET_ADDRESS
+        sync: false
+      - key: SENTINEL_ACCOUNT_ID
+        sync: false
+      - key: SENTINEL_WALLET_ADDRESS
+        sync: false
+      - key: EXECUTOR_ACCOUNT_ID
+        sync: false
+      - key: EXECUTOR_WALLET_ADDRESS
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: UNISWAP_API_KEY
+        sync: false
+      - key: HELIOS_REGISTRY_ADDRESS
+        sync: false
+      - key: DEPLOYER_PRIVATE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
