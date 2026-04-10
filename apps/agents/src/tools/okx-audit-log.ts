@@ -1,6 +1,6 @@
-import { tool } from "../ai/tool.js";
 import { z } from "zod";
-import { cliData } from "./_cli.js";
+import { tool } from "../ai/tool.js";
+import { allItems, CHAIN_INDEX, okxFetch } from "./okx-client.js";
 
 export const okxAuditLog = tool({
   description:
@@ -11,26 +11,18 @@ export const okxAuditLog = tool({
     limit: z.number().default(20),
   }),
   execute: async ({ timeFrame, sortBy }) => {
-    const leaderboard = cliData([
-      "leaderboard",
-      "list",
-      "--chain",
-      "xlayer",
-      "--time-frame",
-      timeFrame,
-      "--sort-by",
-      sortBy,
+    const [leaderboardJson, activityJson] = await Promise.all([
+      okxFetch<{ data?: unknown[] }>("/api/v6/dex/market/leaderboard/list", {
+        params: { chainIndex: CHAIN_INDEX, timeFrame, sortBy },
+      }),
+      okxFetch<{ data?: unknown[] }>("/api/v6/dex/market/address-tracker/trades", {
+        params: { chainIndex: CHAIN_INDEX, trackerType: "smart_money", tradeType: "1" },
+      }),
     ]);
-    const activity = cliData([
-      "tracker",
-      "activities",
-      "--tracker-type",
-      "smart_money",
-      "--chain",
-      "xlayer",
-      "--trade-type",
-      "1",
-    ]);
-    return { leaderboard, recentSmartMoneyBuys: activity };
+
+    return {
+      leaderboard: allItems(leaderboardJson),
+      recentSmartMoneyBuys: allItems(activityJson),
+    };
   },
 });

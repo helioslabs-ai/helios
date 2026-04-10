@@ -1,4 +1,3 @@
-import { Hono } from "hono";
 import {
   buildPaymentRequired,
   buildPaymentResponse,
@@ -6,9 +5,10 @@ import {
   okxVerifyX402Payment,
   X402_SCAN_PRICE,
 } from "@helios/shared/payments";
-import { buildStrategistBudget, STRATEGIST_SYSTEM_PROMPT } from "../prompts/strategist.js";
+import { Hono } from "hono";
 import { runStrategistScan } from "../agents/strategist.js";
 import { buildCycleContext } from "../memory/index.js";
+import { buildStrategistBudget, STRATEGIST_SYSTEM_PROMPT } from "../prompts/strategist.js";
 import { strategistTools } from "../tools/registry.js";
 
 const strategistRoutes = new Hono();
@@ -60,7 +60,7 @@ strategistRoutes.get("/scan", async (c) => {
         address: STRATEGIST_WALLET as `0x${string}`,
       },
       tools: strategistTools,
-      llm: { model: "claude-sonnet-4-6", apiKey: process.env.ANTHROPIC_API_KEY ?? "" },
+      llm: { model: "gpt-4o", apiKey: process.env.OPENAI_API_KEY ?? "" },
       prompts: {
         strategy: STRATEGIST_SYSTEM_PROMPT,
         budget: buildStrategistBudget({

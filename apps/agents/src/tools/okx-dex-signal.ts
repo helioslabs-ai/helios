@@ -1,6 +1,6 @@
-import { tool } from "../ai/tool.js";
 import { z } from "zod";
-import { cliData } from "./_cli.js";
+import { tool } from "../ai/tool.js";
+import { allItems, CHAIN_INDEX, okxFetch } from "./okx-client.js";
 
 export const okxDexSignal = tool({
   description:
@@ -14,13 +14,17 @@ export const okxDexSignal = tool({
     minAddressCount: z.string().optional().describe("Minimum triggering wallet count"),
   }),
   execute: async ({ walletType, minAmountUsd, minAddressCount }) => {
-    const args = ["signal", "list", "--chain", "xlayer"];
-    if (walletType) args.push("--wallet-type", walletType);
-    if (minAmountUsd) args.push("--min-amount-usd", minAmountUsd);
-    if (minAddressCount) args.push("--min-address-count", minAddressCount);
+    const body: Record<string, string> = { chainIndex: CHAIN_INDEX };
+    if (walletType) body.walletType = walletType;
+    if (minAmountUsd) body.minAmountUsd = minAmountUsd;
+    if (minAddressCount) body.minAddressCount = minAddressCount;
 
-    const signals = cliData<unknown[]>(args);
-    return { signals, chain: "xlayer", chainIndex: "196" };
+    const json = await okxFetch<{ data?: unknown[] }>("/api/v6/dex/market/signal/list", {
+      method: "POST",
+      body,
+    });
+    const signals = allItems(json);
+    return { signals, chain: "xlayer", chainIndex: CHAIN_INDEX };
   },
 });
 
@@ -35,10 +39,16 @@ export const okxSmartMoneyTracker = tool({
     tradeType: z.string().optional().describe("0=all, 1=buy only, 2=sell only. Default 0"),
   }),
   execute: async ({ trackerType, tradeType }) => {
-    const args = ["tracker", "activities", "--tracker-type", trackerType, "--chain", "xlayer"];
-    if (tradeType) args.push("--trade-type", tradeType);
+    const params: Record<string, string | undefined> = {
+      chainIndex: CHAIN_INDEX,
+      trackerType,
+      tradeType,
+    };
 
-    const trades = cliData<unknown[]>(args);
+    const json = await okxFetch<{ data?: unknown[] }>("/api/v6/dex/market/address-tracker/trades", {
+      params,
+    });
+    const trades = allItems(json);
     return { trades, trackerType, chain: "xlayer" };
   },
 });

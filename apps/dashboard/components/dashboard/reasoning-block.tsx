@@ -21,12 +21,7 @@ export function ReasoningBlock({ lastCycle }: Props) {
         </span>
         {lastCycle && (
           <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "text-xs font-mono font-semibold",
-                ACTION_COLOR[lastCycle.action],
-              )}
-            >
+            <span className={cn("text-xs font-mono font-semibold", ACTION_COLOR[lastCycle.action])}>
               {lastCycle.action.toUpperCase()}
             </span>
             <span className="text-xs font-mono text-text-dim">
@@ -41,9 +36,7 @@ export function ReasoningBlock({ lastCycle }: Props) {
           "{lastCycle.reasoning}"
         </p>
       ) : (
-        <p className="text-sm font-mono text-text-dim italic">
-          No cycles completed yet.
-        </p>
+        <p className="text-sm font-mono text-text-dim italic">No cycles completed yet.</p>
       )}
     </div>
   );

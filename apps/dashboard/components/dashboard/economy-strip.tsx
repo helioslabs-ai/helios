@@ -20,17 +20,9 @@ export function EconomyStrip({ economy }: Props) {
       <div className="flex items-center gap-12">
         <Stat label="Cycles" value={economy.totalCycles.toString()} />
         <div className="w-px h-10 bg-border-dim" />
-        <Stat
-          label="X402 Paid"
-          value={`$${economy.totalX402PaidUsdc}`}
-          sub="USDG total"
-        />
+        <Stat label="X402 Paid" value={`$${economy.totalX402PaidUsdc}`} sub="USDG total" />
         <div className="w-px h-10 bg-border-dim" />
-        <Stat
-          label="Onchain Txns"
-          value={economy.totalX402Txns.toString()}
-          sub="X Layer"
-        />
+        <Stat label="Onchain Txns" value={economy.totalX402Txns.toString()} sub="X Layer" />
         <div className="w-px h-10 bg-border-dim" />
         <div className="flex flex-col gap-0.5">
           <span className="text-xs font-mono text-text-muted uppercase tracking-widest">

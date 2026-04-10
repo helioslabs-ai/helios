@@ -41,7 +41,13 @@ export function PaymentFlow({ economy }: Props) {
                   0.001 USDG
                 </div>
               </div>
-              <svg width="8" height="10" viewBox="0 0 8 10" fill={AGENT_COLORS[agent]}>
+              <svg
+                width="8"
+                height="10"
+                viewBox="0 0 8 10"
+                fill={AGENT_COLORS[agent]}
+                aria-hidden="true"
+              >
                 <path d="M0 0 L8 5 L0 10 Z" />
               </svg>
             </div>

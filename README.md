@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Self-Sustaining Multi-Agent DeFi Economy.</strong><br/>
- An autonomous DeFi portfolio manager where capital never stops working. Four sovereign AI agents, each with its own wallet and on-chain identity, continuously find yield, execute trades, harvest returns, and compound profits on X Layer — paying one another via x402 micropayments in a self-sustaining on-chain economy. No human intervention.
+ An autonomous DeFi portfolio manager where capital never stops working. Four sovereign AI agents, each with its own wallet and on-chain identity, continuously find yield, monitors risk, execute trades, harvest returns, and compound profits on X Layer — paying one another via x402 micropayments in a self-sustaining on-chain economy. No human intervention.
 </p>
 
 <p align="center">

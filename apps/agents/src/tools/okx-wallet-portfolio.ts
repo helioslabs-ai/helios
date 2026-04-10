@@ -1,6 +1,6 @@
-import { tool } from "../ai/tool.js";
 import { z } from "zod";
-import { cliData } from "./_cli.js";
+import { tool } from "../ai/tool.js";
+import { CHAIN_INDEX, okxFetch } from "./okx-client.js";
 
 export const okxWalletBalances = tool({
   description:
@@ -9,8 +9,16 @@ export const okxWalletBalances = tool({
     address: z.string().describe("Wallet address"),
     chains: z.string().default("xlayer").describe("Comma-separated chain names"),
   }),
-  execute: async ({ address, chains }) => {
-    return cliData(["portfolio", "all-balances", "--address", address, "--chains", chains]);
+  execute: async ({ address }) => {
+    const params: Record<string, string | undefined> = {
+      address,
+      chains: CHAIN_INDEX,
+    };
+    const json = await okxFetch<{ data?: unknown[] }>(
+      "/api/v6/dex/balance/all-token-balances-by-address",
+      { params },
+    );
+    return json;
   },
 });
 
@@ -20,7 +28,15 @@ export const okxWalletTotalValue = tool({
     address: z.string().describe("Wallet address"),
     chains: z.string().default("xlayer"),
   }),
-  execute: async ({ address, chains }) => {
-    return cliData(["portfolio", "total-value", "--address", address, "--chains", chains]);
+  execute: async ({ address }) => {
+    const params: Record<string, string | undefined> = {
+      address,
+      chains: CHAIN_INDEX,
+    };
+    const json = await okxFetch<{ data?: unknown[] }>(
+      "/api/v6/dex/balance/total-value-by-address",
+      { params },
+    );
+    return json;
   },
 });

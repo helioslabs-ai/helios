@@ -17,9 +17,7 @@ export function PositionTable({ openPositions, closedPositions, yieldPosition }:
         <span className="text-xs font-mono text-text-muted uppercase tracking-widest">
           Positions
         </span>
-        <span className="text-xs font-mono text-text-dim">
-          {openPositions.length} open
-        </span>
+        <span className="text-xs font-mono text-text-dim">{openPositions.length} open</span>
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0">
@@ -66,16 +64,10 @@ function PositionRow({ position: p }: { position: Position }) {
       <td
         className={cn(
           "px-4 py-2.5 font-semibold tabular-nums",
-          p.pnlPct !== undefined
-            ? pnlPositive
-              ? "text-emerald"
-              : "text-red"
-            : "text-text-dim",
+          p.pnlPct !== undefined ? (pnlPositive ? "text-emerald" : "text-red") : "text-text-dim",
         )}
       >
-        {p.pnlPct !== undefined
-          ? `${pnlPositive ? "+" : ""}${p.pnlPct.toFixed(2)}%`
-          : "—"}
+        {p.pnlPct !== undefined ? `${pnlPositive ? "+" : ""}${p.pnlPct.toFixed(2)}%` : "—"}
       </td>
       <td className="px-4 py-2.5">
         <StatusBadge status={p.status} exitCondition={p.exitCondition} />

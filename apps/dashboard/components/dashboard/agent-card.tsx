@@ -1,7 +1,6 @@
 import { getOkLinkAddressUrl } from "@/lib/api";
-import { truncateAddress } from "@/lib/utils";
 import type { AgentInfo, SwarmState } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, truncateAddress } from "@/lib/utils";
 
 interface Props {
   agent: AgentInfo;

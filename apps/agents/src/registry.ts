@@ -1,6 +1,6 @@
+import { xlayer } from "@helios/shared/chains";
 import { createWalletClient, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { xlayer } from "@helios/shared/chains";
 
 const REGISTRY_ABI = parseAbi([
   "function logCycle(string calldata action, string calldata txHashes) external",

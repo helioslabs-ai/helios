@@ -1,4 +1,3 @@
-import { Hono } from "hono";
 import {
   buildPaymentRequired,
   buildPaymentResponse,
@@ -6,9 +5,10 @@ import {
   okxVerifyX402Payment,
   X402_ASSESS_PRICE,
 } from "@helios/shared/payments";
-import { SENTINEL_SYSTEM_PROMPT } from "../prompts/sentinel.js";
+import { Hono } from "hono";
 import { runSentinelAssessment } from "../agents/sentinel.js";
 import { buildCycleContext } from "../memory/index.js";
+import { SENTINEL_SYSTEM_PROMPT } from "../prompts/sentinel.js";
 import { sentinelTools } from "../tools/registry.js";
 
 const sentinelRoutes = new Hono();
@@ -63,7 +63,7 @@ sentinelRoutes.get("/assess", async (c) => {
         address: SENTINEL_WALLET as `0x${string}`,
       },
       tools: sentinelTools,
-      llm: { model: "claude-sonnet-4-6", apiKey: process.env.ANTHROPIC_API_KEY ?? "" },
+      llm: { model: "gpt-4o", apiKey: process.env.OPENAI_API_KEY ?? "" },
       prompts: { strategy: SENTINEL_SYSTEM_PROMPT, budget: "" },
     },
     token,

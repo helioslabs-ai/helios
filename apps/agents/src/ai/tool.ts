@@ -1,5 +1,6 @@
+import type { Tool } from "ai";
 import { tool as aiTool, zodSchema } from "ai";
-import type { ZodTypeAny, infer as ZodInfer } from "zod";
+import type { infer as ZodInfer, ZodTypeAny } from "zod";
 
 export function tool<TSchema extends ZodTypeAny, TOutput>({
   description,
@@ -9,11 +10,10 @@ export function tool<TSchema extends ZodTypeAny, TOutput>({
   description: string;
   parameters: TSchema;
   execute: (input: ZodInfer<TSchema>) => Promise<TOutput>;
-}) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+}): Tool {
   return aiTool({
     description,
-    inputSchema: zodSchema(parameters) as any,
-    execute: execute as any,
+    inputSchema: zodSchema(parameters),
+    execute: execute as (input: Record<string, unknown>) => Promise<TOutput>,
   });
 }

@@ -1,5 +1,5 @@
-import { createHmac } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { createHmac } from "node:crypto";
 import { XLAYER_USDG, XLAYER_X402_NETWORK } from "./chains.js";
 
 const OKX_BASE = "https://www.okx.com/api/v5/waas";

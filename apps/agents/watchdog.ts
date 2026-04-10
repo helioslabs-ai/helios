@@ -6,8 +6,9 @@ const CHECK_INTERVAL_MS = 30 * 60 * 1000;
 const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000;
 const ENTRY = resolve(import.meta.dir, "src/index.ts");
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let agentProcess: any = null;
+import type { ChildProcess } from "node:child_process";
+
+let agentProcess: ChildProcess | null = null;
 
 function startAgent() {
   console.log("[Watchdog] Starting agent process:", ENTRY);

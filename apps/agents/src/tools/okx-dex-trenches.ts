@@ -1,6 +1,6 @@
-import { tool } from "../ai/tool.js";
 import { z } from "zod";
-import { cliData } from "./_cli.js";
+import { tool } from "../ai/tool.js";
+import { allItems, CHAIN_INDEX, okxFetch } from "./okx-client.js";
 
 export const okxDexTrenches = tool({
   description:
@@ -10,13 +10,16 @@ export const okxDexTrenches = tool({
     minLiquidity: z.string().optional().describe("Minimum liquidity USD"),
     riskFilter: z.string().optional().describe("true to hide risky tokens"),
   }),
-  execute: async ({ minHolders, minLiquidity, riskFilter }) => {
-    const args = ["token", "hot-tokens", "--ranking-type", "4", "--chain", "xlayer"];
-    if (minHolders) args.push("--holders-min", minHolders);
-    if (minLiquidity) args.push("--liquidity-min", minLiquidity);
-    if (riskFilter) args.push("--risk-filter", riskFilter);
-
-    const tokens = cliData<unknown[]>(args);
+  execute: async ({ riskFilter }) => {
+    const params: Record<string, string | undefined> = {
+      chainIndex: CHAIN_INDEX,
+      rankingType: "4",
+      riskFilter,
+    };
+    const json = await okxFetch<{ data?: unknown[] }>("/api/v6/dex/market/token/hot-token", {
+      params,
+    });
+    const tokens = allItems(json);
     return { tokens, chain: "xlayer" };
   },
 });

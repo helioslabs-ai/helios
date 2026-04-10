@@ -1,6 +1,6 @@
-import { tool } from "../ai/tool.js";
 import { z } from "zod";
-import { cliData } from "./_cli.js";
+import { tool } from "../ai/tool.js";
+import { allItems, CHAIN_INDEX, firstItem, okxFetch } from "./okx-client.js";
 
 export const okxTokenHotTokens = tool({
   description:
@@ -11,10 +11,16 @@ export const okxTokenHotTokens = tool({
     riskFilter: z.string().optional().describe("true to hide risky tokens"),
   }),
   execute: async ({ rankingType, timeFrame, riskFilter }) => {
-    const args = ["token", "hot-tokens", "--ranking-type", rankingType, "--chain", "xlayer"];
-    if (timeFrame) args.push("--time-frame", timeFrame);
-    if (riskFilter) args.push("--risk-filter", riskFilter);
-    const tokens = cliData<unknown[]>(args);
+    const params: Record<string, string | undefined> = {
+      chainIndex: CHAIN_INDEX,
+      rankingType,
+      timeFrame,
+      riskFilter,
+    };
+    const json = await okxFetch<{ data?: unknown[] }>("/api/v6/dex/market/token/hot-token", {
+      params,
+    });
+    const tokens = allItems(json);
     return { tokens, chain: "xlayer", rankingType };
   },
 });
@@ -26,15 +32,15 @@ export const okxTokenAdvancedInfo = tool({
     address: z.string().describe("Token contract address (lowercase)"),
     chain: z.string().default("xlayer"),
   }),
-  execute: async ({ address, chain }) => {
-    return cliData([
-      "token",
-      "advanced-info",
-      "--address",
-      address.toLowerCase(),
-      "--chain",
-      chain,
-    ]);
+  execute: async ({ address }) => {
+    const params: Record<string, string | undefined> = {
+      chainIndex: CHAIN_INDEX,
+      tokenContractAddress: address.toLowerCase(),
+    };
+    const json = await okxFetch<{ data?: unknown[] }>("/api/v6/dex/market/token/advanced-info", {
+      params,
+    });
+    return firstItem(json);
   },
 });
 
@@ -45,7 +51,12 @@ export const okxTokenPriceInfo = tool({
     address: z.string().describe("Token contract address (lowercase)"),
     chain: z.string().default("xlayer"),
   }),
-  execute: async ({ address, chain }) => {
-    return cliData(["token", "price-info", "--address", address.toLowerCase(), "--chain", chain]);
+  execute: async ({ address }) => {
+    const body = [{ chainIndex: CHAIN_INDEX, tokenContractAddress: address.toLowerCase() }];
+    const json = await okxFetch<{ data?: unknown[] }>("/api/v6/dex/market/price-info", {
+      method: "POST",
+      body,
+    });
+    return firstItem(json);
   },
 });

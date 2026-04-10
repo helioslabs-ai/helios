@@ -1,10 +1,10 @@
 import { appendFileSync } from "node:fs";
 import { join } from "node:path";
 import { settleX402 } from "@helios/shared/payments";
-import { logCycleOnChain } from "../registry.js";
-import { buildCycleContext } from "../memory/index.js";
 import { getDb } from "../db/client.js";
 import { cycles, economyEntries } from "../db/schema/index.js";
+import { buildCycleContext } from "../memory/index.js";
+import { logCycleOnChain } from "../registry.js";
 import {
   incrementCycle,
   isHalted,

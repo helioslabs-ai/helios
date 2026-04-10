@@ -1,9 +1,9 @@
-import { app } from "./app.js";
 import { runCycle, startCycleLoop } from "./agents/curator.js";
-import { curatorTools, executorTools, sentinelTools, strategistTools } from "./tools/registry.js";
-import { EXECUTOR_SYSTEM_PROMPT, buildExecutorBudget } from "./prompts/executor.js";
+import { app } from "./app.js";
+import { buildExecutorBudget, EXECUTOR_SYSTEM_PROMPT } from "./prompts/executor.js";
 import { SENTINEL_SYSTEM_PROMPT } from "./prompts/sentinel.js";
-import { STRATEGIST_SYSTEM_PROMPT, buildStrategistBudget } from "./prompts/strategist.js";
+import { buildStrategistBudget, STRATEGIST_SYSTEM_PROMPT } from "./prompts/strategist.js";
+import { curatorTools, executorTools, sentinelTools, strategistTools } from "./tools/registry.js";
 import type { AgentConfig, AgentName } from "./types.js";
 
 const PORT = Number(process.env.API_URL?.split(":").pop()) || 3001;

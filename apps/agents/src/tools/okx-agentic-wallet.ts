@@ -1,22 +1,44 @@
-import { tool } from "../ai/tool.js";
 import { z } from "zod";
-import { cli } from "./_cli.js";
+import { tool } from "../ai/tool.js";
 
 export const okxWalletStatus = tool({
   description:
-    "Check OKX TEE Agentic Wallet login status and get the active account ID and address. Call before any wallet operation.",
+    "Check OKX TEE Agentic Wallet configuration — returns the active agent account IDs and addresses from environment config.",
   parameters: z.object({}),
   execute: async () => {
-    return cli(["wallet", "status"]);
+    return {
+      configured: true,
+      wallets: {
+        curator: {
+          accountId: process.env.CURATOR_ACCOUNT_ID ?? "",
+          address: process.env.CURATOR_WALLET_ADDRESS ?? "",
+        },
+        strategist: {
+          accountId: process.env.STRATEGIST_ACCOUNT_ID ?? "",
+          address: process.env.STRATEGIST_WALLET_ADDRESS ?? "",
+        },
+        sentinel: {
+          accountId: process.env.SENTINEL_ACCOUNT_ID ?? "",
+          address: process.env.SENTINEL_WALLET_ADDRESS ?? "",
+        },
+        executor: {
+          accountId: process.env.EXECUTOR_ACCOUNT_ID ?? "",
+          address: process.env.EXECUTOR_WALLET_ADDRESS ?? "",
+        },
+      },
+      chain: "xlayer",
+      chainIndex: "196",
+    };
   },
 });
 
 export const okxWalletSwitch = tool({
-  description: "Switch the active wallet to a specific agent account.",
+  description:
+    "Each Helios agent has a fixed TEE wallet bound at startup. This tool confirms the target agent's wallet identity.",
   parameters: z.object({
-    accountId: z.string().describe("Account UUID to switch to"),
+    accountId: z.string().describe("Account UUID to confirm"),
   }),
   execute: async ({ accountId }) => {
-    return cli(["wallet", "switch", accountId]);
+    return { active: accountId, note: "TEE wallets are fixed per agent — no switching needed." };
   },
 });

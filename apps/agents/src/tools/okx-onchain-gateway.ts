@@ -1,6 +1,6 @@
-import { tool } from "../ai/tool.js";
 import { z } from "zod";
-import { cliData } from "./_cli.js";
+import { tool } from "../ai/tool.js";
+import { CHAIN_INDEX, firstItem, okxFetch } from "./okx-client.js";
 
 export const okxGatewayGas = tool({
   description:
@@ -8,8 +8,12 @@ export const okxGatewayGas = tool({
   parameters: z.object({
     chain: z.string().default("xlayer"),
   }),
-  execute: async ({ chain }) => {
-    return cliData(["gateway", "gas", "--chain", chain]);
+  execute: async () => {
+    const params: Record<string, string | undefined> = { chainIndex: CHAIN_INDEX };
+    const json = await okxFetch<{ data?: unknown[] }>("/api/v6/dex/pre-transaction/gas-price", {
+      params,
+    });
+    return firstItem(json);
   },
 });
 
@@ -22,22 +26,24 @@ export const okxGatewaySimulate = tool({
     data: z.string().describe("Calldata hex"),
     chain: z.string().default("xlayer"),
     amount: z.string().default("0").describe("Value in minimal units"),
+    gasLimit: z.string().optional().describe("Gas limit"),
+    gasPrice: z.string().optional().describe("Gas price in wei"),
   }),
-  execute: async ({ from, to, data, chain, amount }) => {
-    return cliData([
-      "gateway",
-      "simulate",
-      "--from",
-      from,
-      "--to",
-      to,
-      "--data",
-      data,
-      "--chain",
-      chain,
-      "--amount",
-      amount,
-    ]);
+  execute: async ({ from, to, data, amount, gasLimit, gasPrice }) => {
+    const body: Record<string, string | undefined> = {
+      chainIndex: CHAIN_INDEX,
+      fromAddress: from,
+      toAddress: to,
+      txAmount: amount,
+      inputData: data,
+      gasLimit,
+      gasPrice,
+    };
+    const json = await okxFetch<{ data?: unknown[] }>("/api/v6/dex/pre-transaction/simulate", {
+      method: "POST",
+      body: Object.fromEntries(Object.entries(body).filter(([, v]) => v !== undefined)),
+    });
+    return firstItem(json);
   },
 });
 
@@ -48,16 +54,16 @@ export const okxGatewayBroadcast = tool({
     address: z.string().describe("Sender wallet address"),
     chain: z.string().default("xlayer"),
   }),
-  execute: async ({ signedTx, address, chain }) => {
-    return cliData([
-      "gateway",
-      "broadcast",
-      "--signed-tx",
+  execute: async ({ signedTx, address }) => {
+    const body = {
+      chainIndex: CHAIN_INDEX,
       signedTx,
-      "--address",
       address,
-      "--chain",
-      chain,
-    ]);
+    };
+    const json = await okxFetch<{ data?: unknown[] }>(
+      "/api/v6/dex/pre-transaction/broadcast-transaction",
+      { method: "POST", body },
+    );
+    return firstItem(json);
   },
 });

@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { getOkLinkTxUrl } from "@/lib/api";
 import type { CycleAction, CycleSummary, SentinelVerdict } from "@/lib/types";
-import { cn, formatAbsoluteTime, formatRelativeTime } from "@/lib/utils";
+import { cn, formatAbsoluteTime } from "@/lib/utils";
 
 interface Props {
   cycles: CycleSummary[];
@@ -38,13 +38,12 @@ const VERDICT_COLOR: Record<SentinelVerdict, string> = {
 export function CycleFeed({ cycles }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on new cycle
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [cycles.length]);
 
-  const sorted = [...cycles].sort(
-    (a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime(),
-  );
+  const sorted = [...cycles].sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
 
   return (
     <div className="flex flex-col h-full">
@@ -63,11 +62,7 @@ export function CycleFeed({ cycles }: Props) {
         ) : (
           <div className="flex flex-col">
             {sorted.map((cycle, idx) => (
-              <CycleRow
-                key={cycle.id}
-                cycle={cycle}
-                isLatest={idx === sorted.length - 1}
-              />
+              <CycleRow key={cycle.id} cycle={cycle} isLatest={idx === sorted.length - 1} />
             ))}
           </div>
         )}
@@ -86,12 +81,7 @@ function CycleRow({ cycle, isLatest }: { cycle: CycleSummary; isLatest: boolean 
         isLatest && "animate-slide-in",
       )}
     >
-      <span
-        className={cn(
-          "size-1.5 rounded-full shrink-0 mt-1.5",
-          ACTION_DOT[cycle.action],
-        )}
-      />
+      <span className={cn("size-1.5 rounded-full shrink-0 mt-1.5", ACTION_DOT[cycle.action])} />
 
       <span className="text-text-dim w-16 shrink-0 tabular-nums">
         {formatAbsoluteTime(cycle.ts)}

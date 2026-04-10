@@ -1,4 +1,3 @@
-import { Hono } from "hono";
 import {
   buildPaymentRequired,
   buildPaymentResponse,
@@ -6,10 +5,12 @@ import {
   okxVerifyX402Payment,
   X402_DEPLOY_PRICE,
 } from "@helios/shared/payments";
-import { buildExecutorBudget, EXECUTOR_SYSTEM_PROMPT } from "../prompts/executor.js";
+import { Hono } from "hono";
 import { runExecutorDeploy } from "../agents/executor.js";
 import { buildCycleContext } from "../memory/index.js";
+import { buildExecutorBudget, EXECUTOR_SYSTEM_PROMPT } from "../prompts/executor.js";
 import { executorTools } from "../tools/registry.js";
+import { getWalletBalance } from "../wallet/index.js";
 
 const executorRoutes = new Hono();
 const EXECUTOR_WALLET = process.env.EXECUTOR_WALLET_ADDRESS ?? "";
@@ -48,26 +49,33 @@ executorRoutes.post("/deploy", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { instruction?: string };
   const instruction = body.instruction ?? "Execute best available opportunity on X Layer.";
 
+  const executorAccountId = process.env.EXECUTOR_ACCOUNT_ID ?? "";
+  const executorBalance = await getWalletBalance(
+    executorAccountId,
+    EXECUTOR_WALLET,
+    process.env.OKX_API_KEY ?? "",
+  ).catch(() => ({ balanceUsdc: "0" }));
+
   const context = buildCycleContext({
     curator: "0",
     strategist: "0",
     sentinel: "0",
-    executor: "0",
+    executor: executorBalance.balanceUsdc,
   });
 
   const deploy = await runExecutorDeploy(
     {
       name: "executor",
       wallet: {
-        accountId: process.env.EXECUTOR_ACCOUNT_ID ?? "",
+        accountId: executorAccountId,
         address: EXECUTOR_WALLET as `0x${string}`,
       },
       tools: executorTools,
-      llm: { model: "claude-sonnet-4-6", apiKey: process.env.ANTHROPIC_API_KEY ?? "" },
+      llm: { model: "gpt-4o", apiKey: process.env.OPENAI_API_KEY ?? "" },
       prompts: {
         strategy: EXECUTOR_SYSTEM_PROMPT,
         budget: buildExecutorBudget({
-          walletBalance: context.walletBalances.executor ?? "0",
+          walletBalance: executorBalance.balanceUsdc,
           openPositionCount: context.openPositions.length,
           liquidReserve: "1.00",
         }),

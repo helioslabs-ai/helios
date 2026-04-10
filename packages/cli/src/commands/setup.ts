@@ -1,6 +1,6 @@
-import * as p from "@clack/prompts";
-import { writeFileSync, existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import * as p from "@clack/prompts";
 
 const ENV_PATH = resolve(process.cwd(), ".env");
 
@@ -21,7 +21,7 @@ function writeEnv(values: Record<string, string>) {
   const existing = readEnv();
   const merged = { ...existing, ...values };
   const lines = Object.entries(merged).map(([k, v]) => `${k}=${v}`);
-  writeFileSync(ENV_PATH, lines.join("\n") + "\n");
+  writeFileSync(ENV_PATH, `${lines.join("\n")}\n`);
 }
 
 export async function setupCommand() {
@@ -46,7 +46,12 @@ export async function setupCommand() {
           message: "OKX Passphrase",
         }),
     },
-    { onCancel: () => { p.cancel("Setup cancelled"); process.exit(0); } },
+    {
+      onCancel: () => {
+        p.cancel("Setup cancelled");
+        process.exit(0);
+      },
+    },
   );
 
   const wallets = await p.group(
@@ -54,29 +59,50 @@ export async function setupCommand() {
       curatorAccountId: () =>
         p.text({ message: "Curator Account ID", initialValue: existing.CURATOR_ACCOUNT_ID }),
       curatorAddress: () =>
-        p.text({ message: "Curator Wallet Address (0x...)", initialValue: existing.CURATOR_WALLET_ADDRESS }),
+        p.text({
+          message: "Curator Wallet Address (0x...)",
+          initialValue: existing.CURATOR_WALLET_ADDRESS,
+        }),
       executorAccountId: () =>
         p.text({ message: "Executor Account ID", initialValue: existing.EXECUTOR_ACCOUNT_ID }),
       executorAddress: () =>
-        p.text({ message: "Executor Wallet Address (0x...)", initialValue: existing.EXECUTOR_WALLET_ADDRESS }),
+        p.text({
+          message: "Executor Wallet Address (0x...)",
+          initialValue: existing.EXECUTOR_WALLET_ADDRESS,
+        }),
       strategistAccountId: () =>
         p.text({ message: "Strategist Account ID", initialValue: existing.STRATEGIST_ACCOUNT_ID }),
       strategistAddress: () =>
-        p.text({ message: "Strategist Wallet Address (0x...)", initialValue: existing.STRATEGIST_WALLET_ADDRESS }),
+        p.text({
+          message: "Strategist Wallet Address (0x...)",
+          initialValue: existing.STRATEGIST_WALLET_ADDRESS,
+        }),
       sentinelAccountId: () =>
         p.text({ message: "Sentinel Account ID", initialValue: existing.SENTINEL_ACCOUNT_ID }),
       sentinelAddress: () =>
-        p.text({ message: "Sentinel Wallet Address (0x...)", initialValue: existing.SENTINEL_WALLET_ADDRESS }),
+        p.text({
+          message: "Sentinel Wallet Address (0x...)",
+          initialValue: existing.SENTINEL_WALLET_ADDRESS,
+        }),
     },
-    { onCancel: () => { p.cancel("Setup cancelled"); process.exit(0); } },
+    {
+      onCancel: () => {
+        p.cancel("Setup cancelled");
+        process.exit(0);
+      },
+    },
   );
 
   const ai = await p.group(
     {
-      openaiKey: () =>
-        p.password({ message: "OpenAI API Key (sk-proj-...)" }),
+      openaiKey: () => p.password({ message: "OpenAI API Key (sk-proj-...)" }),
     },
-    { onCancel: () => { p.cancel("Setup cancelled"); process.exit(0); } },
+    {
+      onCancel: () => {
+        p.cancel("Setup cancelled");
+        process.exit(0);
+      },
+    },
   );
 
   const optional = await p.group(
@@ -91,9 +117,17 @@ export async function setupCommand() {
       supabaseUrl: () =>
         p.text({ message: "Supabase URL (optional)", initialValue: existing.SUPABASE_URL }),
       supabaseKey: () =>
-        p.text({ message: "Supabase Anon Key (optional)", initialValue: existing.SUPABASE_ANON_KEY }),
+        p.text({
+          message: "Supabase Anon Key (optional)",
+          initialValue: existing.SUPABASE_ANON_KEY,
+        }),
     },
-    { onCancel: () => { p.cancel("Setup cancelled"); process.exit(0); } },
+    {
+      onCancel: () => {
+        p.cancel("Setup cancelled");
+        process.exit(0);
+      },
+    },
   );
 
   writeEnv({

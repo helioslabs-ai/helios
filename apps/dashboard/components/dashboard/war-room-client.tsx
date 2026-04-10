@@ -2,14 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getCycleUrl, getSseUrl } from "@/lib/api";
-import type {
-  CycleSummary,
-  DashboardData,
-  Position,
-  SsePayload,
-  SwarmState,
-  SwarmStatus,
-} from "@/lib/types";
+import type { CycleSummary, DashboardData, SsePayload, SwarmState, SwarmStatus } from "@/lib/types";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { AgentCard } from "./agent-card";
 import { CircuitBreakerBanner } from "./circuit-breaker-banner";
@@ -162,9 +155,7 @@ export function WarRoomClient({ initial }: Props) {
           />
         )}
         {tab === "transactions" && <TransactionsView cycles={cycles} />}
-        {tab === "portfolio" && (
-          <PortfolioView positions={positions} />
-        )}
+        {tab === "portfolio" && <PortfolioView positions={positions} />}
         {tab === "economy" && <EconomyView economy={economy} />}
       </div>
     </div>
@@ -259,9 +250,7 @@ function CommandCenter({
 
 function TransactionsView({ cycles }: { cycles: CycleSummary[] }) {
   const txns = cycles
-    .flatMap((c) =>
-      c.txHashes.map((hash) => ({ hash, ts: c.ts, action: c.action, cycleId: c.id })),
-    )
+    .flatMap((c) => c.txHashes.map((hash) => ({ hash, ts: c.ts, action: c.action, cycleId: c.id })))
     .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
 
   return (
@@ -276,7 +265,10 @@ function TransactionsView({ cycles }: { cycles: CycleSummary[] }) {
           <thead>
             <tr className="border-b border-border-dim bg-surface">
               {["Tx Hash", "Action", "Timestamp", "Cycle"].map((h) => (
-                <th key={h} className="px-4 py-2 text-left text-text-dim uppercase tracking-widest font-normal">
+                <th
+                  key={h}
+                  className="px-4 py-2 text-left text-text-dim uppercase tracking-widest font-normal"
+                >
                   {h}
                 </th>
               ))}
@@ -284,7 +276,10 @@ function TransactionsView({ cycles }: { cycles: CycleSummary[] }) {
           </thead>
           <tbody>
             {txns.map(({ hash, ts, action, cycleId }) => (
-              <tr key={hash} className="border-b border-border-dim/50 hover:bg-surface-raised transition-colors">
+              <tr
+                key={hash}
+                className="border-b border-border-dim/50 hover:bg-surface-raised transition-colors"
+              >
                 <td className="px-4 py-2.5">
                   <a
                     href={`https://www.oklink.com/xlayer/tx/${hash}`}
@@ -295,7 +290,16 @@ function TransactionsView({ cycles }: { cycles: CycleSummary[] }) {
                     {hash.slice(0, 10)}...{hash.slice(-6)}
                   </a>
                 </td>
-                <td className={cn("px-4 py-2.5 font-semibold", action === "buy" ? "text-gold" : action === "yield_park" ? "text-emerald" : "text-text-muted")}>
+                <td
+                  className={cn(
+                    "px-4 py-2.5 font-semibold",
+                    action === "buy"
+                      ? "text-gold"
+                      : action === "yield_park"
+                        ? "text-emerald"
+                        : "text-text-muted",
+                  )}
+                >
                   {action.toUpperCase()}
                 </td>
                 <td className="px-4 py-2.5 text-text-dim tabular-nums">
@@ -355,18 +359,14 @@ function EconomyView({ economy }: { economy: DashboardData["economy"] }) {
 
 function HexLogo() {
   return (
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
       <polygon
         points="14,2 25,8 25,20 14,26 3,20 3,8"
         stroke="#F59E0B"
         strokeWidth="1.5"
         fill="rgba(245,158,11,0.08)"
       />
-      <polygon
-        points="14,7 21,11 21,19 14,23 7,19 7,11"
-        fill="#F59E0B"
-        opacity="0.3"
-      />
+      <polygon points="14,7 21,11 21,19 14,23 7,19 7,11" fill="#F59E0B" opacity="0.3" />
     </svg>
   );
 }
