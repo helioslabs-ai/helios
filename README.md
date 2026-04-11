@@ -12,7 +12,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Live-10B981?style=flat-square" />
   <img src="https://img.shields.io/badge/X_Layer-chainId_196-000000?style=flat-square&logoColor=white" />
-  <img src="https://img.shields.io/badge/OKX_OnchainOS-000000?style=flat-square&logoColor=white" />
   <img src="https://img.shields.io/badge/x402-Protocol-6366F1?style=flat-square" />
   <img src="https://img.shields.io/badge/Uniswap_v3-FF007A?style=flat-square" />
   <img src="https://img.shields.io/badge/Aave_v3-B6509E?style=flat-square" />
@@ -24,7 +23,6 @@
   <a href="https://heliosfi.xyz/dashboard"><strong>Live Demo</strong></a> ·
   <a href="https://www.oklink.com/xlayer/address/0x258e3035242a05b53ca82c5dffeaeadee2af0d2c"><strong>Primary Agent Wallet</strong></a> ·
   <a href="https://www.oklink.com/xlayer/address/0x5b5F83A465EF625B7d2E6a26c848517fD31D0bb3"><strong>HeliosRegistry Contract</strong></a> ·
-  <a href="https://github.com/helioslabs-ai/helios/tree/main/docs"><strong>Docs</strong></a> ·
   <a href="https://heliosfi.xyz/skill.md"><strong>SKILL.md</strong></a>
 </p>
 
