@@ -93,7 +93,35 @@
 
 ## Phase 2 — Dashboard
 
-_Tasks TBD when Phase 1 merges_
+**Branch:** `phase/dashboard-improvements`
+
+### Design system
+
+- [x] **D1 — Update color tokens** — `#FFA30F` gold, `#0F0D0E` deepest bg, `#0A0C10` surface in `globals.css`
+- [x] **D2 — Logo swap** — `helios-icon.svg` in hero and header
+- [x] **D3 — Apply design system** — Syne + JetBrains Mono fonts, radial gold glow, shadcn dark overrides
+
+### Layout restructure
+
+- [x] **D4 — Merge landing + dashboard into one page** — single `HeliosDashboard` component at `/`, leaderboard as embedded tab, `/dashboard` redirects to `/`
+
+### Missing features
+
+- [x] **D5 — Live swarm stats** — SSE `/api/sse` connected; swarm state, circuit breaker banner, last cycle time, consecutive failures
+- [x] **D6 — Agent health panel** — `GET /api/agents`; name, address, accountId (backend has no balance field)
+- [x] **D7 — Economy panel** — `GET /api/economy`; x402 totals, per-agent earnings, BarChart
+- [x] **D8 — Positions panel** — `GET /api/positions`; open trades, closed P&L AreaChart, yield position
+- [x] **D9 — Cycle log** — `GET /api/logs`; last N cycles, reasoning, tx hashes, sentinel verdict
+- [x] **D10 — Manual cycle trigger** — `POST /api/cycle`; disabled when halted or busy
+- [x] **D11 — Leaderboard section** — `GET /api/registry`; rank, return%, PnL, trades, cycles, status badges
+- [x] **D12 — Public swarm page** — `/swarm/[curatorAddress]` restyled with Helios dark tokens
+
+### Verification
+
+- [x] All data from live API, no mocks
+- [x] SSE stream connected and updating in real time
+- [x] `tsc --noEmit` clean
+- [x] Deploys cleanly to Vercel (`bun run build` passes)
 
 ## Phase 3 — CLI
 
@@ -118,5 +146,5 @@ _Tasks TBD when Phase 3 merges_
 
 ## Current
 
-**Working on:** Phase 2 — Dashboard
-**Status:** Phase 1 complete. tsc clean, 53 tests pass. Merging to main, moving to Phase 2.
+**Working on:** Phase 3 — CLI
+**Status:** Phase 2 complete. tsc clean, build passes. Dashboard on `phase/dashboard-improvements`.

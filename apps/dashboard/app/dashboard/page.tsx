@@ -1,7 +1,5 @@
-import { WarRoomClient } from "@/components/dashboard/war-room-client";
-import { fetchDashboardData } from "@/lib/api";
+import { redirect } from "next/navigation";
 
-export default async function DashboardPage() {
-  const data = await fetchDashboardData();
-  return <WarRoomClient initial={data} />;
+export default function DashboardPage() {
+  redirect("/");
 }
