@@ -8,6 +8,39 @@ Every 30 minutes, Helios proves it is alive onchain.
 
 ---
 
+## How it Works
+
+```
+1. CREATE   helios setup
+            → swarm name
+            → strategy: plain English text input (pre-filled with default template)
+              e.g. "Focus on high momentum tokens with strong whale activity"
+            → guardrails: Max Trade Size, Max Total Loss, Interval
+            → OKX API key/secret/passphrase
+            → creates 4 TEE wallets automatically via OKX Agentic Wallet API
+            → writes everything to .env
+
+2. SEED     helios seed
+            → displays 4 wallet addresses + exact USDC + OKB amounts to send
+            → user funds wallets manually (cannot be abstracted — OKX auth required)
+
+3. DEPLOY   helios start
+            → starts cycle loop
+            → registers swarm on leaderboard (POST to heliosfi.xyz/api/registry)
+            → swarm appears on public leaderboard immediately
+
+4. MONITOR  heliosfi.xyz/dashboard  (visual, live)
+            helios status            (terminal)
+            helios logs 10           (cycle reasoning)
+            MCP / SKILL.md           (agent-to-agent)
+
+5. ADJUST   helios strategy          (update strategy prompt anytime)
+            helios guardrails        (update risk limits anytime)
+            → both take effect on next cycle, no restart needed
+```
+
+---
+
 ## Multi-Agent Design
 
 ```
@@ -30,12 +63,12 @@ Every 30 minutes, Helios proves it is alive onchain.
 
 Each agent has an independent OKX TEE Agentic Wallet. No shared custody. No human in the critical path.
 
-| Agent          | OnchainOS Skills                                                                               | Role                                               |
-| -------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| **Curator**    | okx-agentic-wallet, okx-defi-portfolio, okx-wallet-portfolio, okx-audit-log                    | Orchestrate cycles, compound profits, pay agents   |
-| **Strategist** | okx-dex-signal, okx-dex-token, okx-dex-market, okx-defi-invest, okx-defi-portfolio, okx-dex-ws, okx-dex-trenches  | Scan yield opportunities + trading signals, recommend best capital allocation    |
-| **Sentinel**   | okx-security, okx-dex-token                                                                    | Risk-score opportunities, guard against bad trades |
-| **Executor**   | okx-dex-swap, okx-onchain-gateway, okx-x402-payment                                            | Execute swaps onchain, settle x402 payments        |
+| Agent          | OnchainOS Skills                                                                                                 | Role                                                                          |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| **Curator**    | okx-agentic-wallet, okx-defi-portfolio, okx-wallet-portfolio, okx-audit-log                                      | Orchestrate cycles, compound profits, pay agents                              |
+| **Strategist** | okx-dex-signal, okx-dex-token, okx-dex-market, okx-defi-invest, okx-defi-portfolio, okx-dex-ws, okx-dex-trenches | Scan yield opportunities + trading signals, recommend best capital allocation |
+| **Sentinel**   | okx-security, okx-dex-token                                                                                      | Risk-score opportunities, guard against bad trades                            |
+| **Executor**   | okx-dex-swap, okx-onchain-gateway, okx-x402-payment                                                              | Execute swaps onchain, settle x402 payments                                   |
 
 **OnchainOS skills used: 14/14**
 
@@ -67,14 +100,14 @@ IDLE → STRATEGIST_SCAN → SENTINEL_CHECK → EXECUTOR_DEPLOY → COMPOUNDING 
           YIELD_PARK → IDLE
 ```
 
-| State              | Who acts    | What happens                                                     |
-| ------------------ | ----------- | ---------------------------------------------------------------- |
-| `IDLE`             | Curator     | Wait for interval timer, check circuit breaker before proceeding |
-| `STRATEGIST_SCAN`  | Strategist  | Gather all OKX signals, compute composite score, return top pick |
-| `SENTINEL_CHECK`   | Sentinel    | Risk-score the pick — returns CLEAR or BLOCK                     |
-| `EXECUTOR_DEPLOY`  | Executor    | Swap to target token, log entry, pay agents via x402             |
-| `COMPOUNDING`      | Curator     | Harvest closed position profits → reinvest or park in Aave       |
-| `YIELD_PARK`       | Executor    | No alpha — deposit idle USDC into Aave V3, log no_alpha cycle    |
+| State             | Who acts   | What happens                                                     |
+| ----------------- | ---------- | ---------------------------------------------------------------- |
+| `IDLE`            | Curator    | Wait for interval timer, check circuit breaker before proceeding |
+| `STRATEGIST_SCAN` | Strategist | Gather all OKX signals, compute composite score, return top pick |
+| `SENTINEL_CHECK`  | Sentinel   | Risk-score the pick — returns CLEAR or BLOCK                     |
+| `EXECUTOR_DEPLOY` | Executor   | Swap to target token, log entry, pay agents via x402             |
+| `COMPOUNDING`     | Curator    | Harvest closed position profits → reinvest or park in Aave       |
+| `YIELD_PARK`      | Executor   | No alpha — deposit idle USDC into Aave V3, log no_alpha cycle    |
 
 ---
 
@@ -167,18 +200,18 @@ helios-buildx/
 
 ## Tech Stack
 
-| Layer          | Tech                                                                                            |
-| -------------- | ----------------------------------------------------------------------------------------------- |
-| Agent runtime  | Bun — faster startup, native TypeScript, consistent with package manager                        |
-| Backend API    | Hono on Bun — native SSE (`streamSSE`), x402 routes, REST API                                  |
-| Frontend       | Next.js 15, Tailwind v4, shadcn/ui, Motion, Recharts                                           |
-| Smart contract | Solidity + Foundry → X Layer (chainId 196)                                                     |
-| Database       | Supabase + Drizzle ORM                                                                          |
-| Wallets        | OKX TEE Agentic Wallet × 4 (one per agent)                                                     |
-| Payments       | OKX x402 REST APIs directly (`/x402/verify` + `/x402/settle`)                                  |
-| Blockchain     | X Layer (chainId 196), viem                                                                     |
-| AI Reasoning   | claude-sonnet-4-6 via AI SDK — ReAct tool calling                                              |
-| MCP Server     | Custom stdio MCP server (`packages/mcp-server/`)                                               |
+| Layer          | Tech                                                                     |
+| -------------- | ------------------------------------------------------------------------ |
+| Agent runtime  | Bun — faster startup, native TypeScript, consistent with package manager |
+| Backend API    | Hono on Bun — native SSE (`streamSSE`), x402 routes, REST API            |
+| Frontend       | Next.js 15, Tailwind v4, shadcn/ui, Motion, Recharts                     |
+| Smart contract | Solidity + Foundry → X Layer (chainId 196)                               |
+| Database       | Supabase + Drizzle ORM                                                   |
+| Wallets        | OKX TEE Agentic Wallet × 4 (one per agent)                               |
+| Payments       | OKX x402 REST APIs directly (`/x402/verify` + `/x402/settle`)            |
+| Blockchain     | X Layer (chainId 196), viem                                              |
+| AI Reasoning   | claude-sonnet-4-6 via AI SDK — ReAct tool calling                        |
+| MCP Server     | Custom stdio MCP server (`packages/mcp-server/`)                         |
 
 ---
 

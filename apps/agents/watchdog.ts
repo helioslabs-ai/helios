@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import type { EventEmitter } from "node:events";
 import { resolve } from "node:path";
 
 const API_URL = process.env.API_URL ?? "http://localhost:3001";
@@ -6,9 +7,7 @@ const CHECK_INTERVAL_MS = 30 * 60 * 1000;
 const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000;
 const ENTRY = resolve(import.meta.dir, "src/index.ts");
 
-import type { ChildProcess } from "node:child_process";
-
-let agentProcess: ChildProcess | null = null;
+let agentProcess: ReturnType<typeof spawn> | null = null;
 
 function startAgent() {
   console.log("[Watchdog] Starting agent process:", ENTRY);
@@ -17,7 +16,7 @@ function startAgent() {
     env: process.env,
   });
 
-  agentProcess.on("exit", (code: number | null, signal: string | null) => {
+  (agentProcess as unknown as EventEmitter).on("exit", (code: number | null, signal: string | null) => {
     console.error(`[Watchdog] Agent exited — code=${code} signal=${signal}. Restarting in 5s…`);
     agentProcess = null;
     setTimeout(startAgent, 5_000);
@@ -49,7 +48,7 @@ async function checkStaleness(): Promise<boolean> {
 function restartAgent(reason: string) {
   console.error(`[Watchdog] Restarting agent — ${reason}`);
   if (agentProcess) {
-    agentProcess.removeAllListeners("exit");
+    (agentProcess as unknown as EventEmitter).removeAllListeners("exit");
     agentProcess.kill("SIGTERM");
     agentProcess = null;
   }

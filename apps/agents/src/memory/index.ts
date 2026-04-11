@@ -1,8 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { AgentName, CycleContext, CycleSummary, Position } from "../types.js";
 
-const DATA_DIR = join(import.meta.dir, "../data");
+const META_DIR = (import.meta as { dir?: string }).dir ?? dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = join(META_DIR, "../data");
 
 function readJsonl<T>(filename: string): T[] {
   const path = join(DATA_DIR, filename);

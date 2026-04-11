@@ -1,5 +1,6 @@
-import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { GUARDRAILS, maxTradeSize } from "@helios/shared/guardrails";
 import { settleX402 } from "@helios/shared/payments";
 import { getDb } from "../db/client.js";
 import { cycles, economyEntries } from "../db/schema/index.js";
@@ -7,9 +8,11 @@ import { buildCycleContext } from "../memory/index.js";
 import { logCycleOnChain } from "../registry.js";
 import {
   getState,
+  haltSwarm,
   incrementCycle,
   isHalted,
   recordNoAlpha,
+  resetConsecutiveFailures,
   resetNoAlpha,
   setState,
   tripCircuitBreaker,
@@ -78,7 +81,11 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
     ]),
   ) as Record<AgentName, { accountId: string; address: string }>;
 
-  const balances = await getAllBalances(wallets, process.env.OKX_API_KEY ?? "");
+  // A4: fallback to zero balances on API failure — never crash the cycle
+  const balances = await getAllBalances(wallets).catch((err) => {
+    console.warn("[Curator] getAllBalances failed, using zero fallback:", err);
+    return { curator: "0", strategist: "0", sentinel: "0", executor: "0" } as Record<AgentName, string>;
+  });
   const cycleContext = buildCycleContext(balances);
 
   const txHashes: string[] = [];
@@ -149,7 +156,10 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
       // Phase 4: Executor deploy via x402
       setState("EXECUTOR_DEPLOY");
       const deployUrl = `${API_URL}/agents/executor/deploy`;
-      const instruction = `BUY ${scan.topToken}: score ${scan.compositeScore ?? 0}, signals ${scan.signalCount ?? 0}`;
+      // A9: include computed trade size so executor knows the budget
+      const executorBalanceUsdc = Number.parseFloat(cycleContext.walletBalances.executor ?? "0");
+      const sizeUsdc = maxTradeSize(executorBalanceUsdc).toFixed(2);
+      const instruction = `BUY ${scan.topToken} (contract: ${scan.topContract ?? "unknown"}): size $${sizeUsdc} USDC, score ${scan.compositeScore ?? 0}, signals ${scan.signalCount ?? 0}`;
       const deployResult = await settleX402(deployUrl, curatorAddress, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -168,8 +178,25 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
         isNoAlpha: false,
       });
 
-      const deploy = deployResult.body as { txHash?: string | null; reasoning?: string };
-      if (deploy.txHash) txHashes.push(deploy.txHash);
+      const deploy = deployResult.body as {
+        txHash?: string | null;
+        token?: string;
+        sizeUsdc?: string;
+        reasoning?: string;
+      };
+      if (deploy.txHash) {
+        txHashes.push(deploy.txHash);
+        // A2: write open position to positions.json
+        writePosition({
+          token: deploy.token ?? scan.topToken ?? "unknown",
+          contractAddress: scan.topContract ?? "",
+          entryPrice: "0",
+          sizeUsdc: deploy.sizeUsdc ?? sizeUsdc,
+          entryTxHash: deploy.txHash,
+          enteredAt: new Date().toISOString(),
+          status: "open",
+        });
+      }
       action = "buy";
       reasoning = deploy.reasoning ?? "Executor deployed trade";
       resetNoAlpha();
@@ -201,8 +228,22 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
       isNoAlpha: true,
     });
 
-    const park = parkResult.body as { txHash?: string | null };
-    if (park.txHash) txHashes.push(park.txHash);
+    const park = parkResult.body as { txHash?: string | null; sizeUsdc?: string };
+    if (park.txHash) {
+      txHashes.push(park.txHash);
+      // A7: write yield position to yield.json
+      const yieldAmountUsdc = park.sizeUsdc ?? cycleContext.walletBalances.executor ?? "0";
+      writeFileSync(
+        join(DATA_DIR, "yield.json"),
+        JSON.stringify({
+          platform: "Aave V3",
+          amountUsdc: yieldAmountUsdc,
+          apy: "0.12",
+          depositedAt: new Date().toISOString(),
+          txHash: park.txHash,
+        }),
+      );
+    }
     action = "yield_park";
     recordNoAlpha();
   }
@@ -212,6 +253,8 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
   }
   setState("IDLE");
   incrementCycle();
+  // A3: reset consecutive failures on clean cycle
+  resetConsecutiveFailures();
 
   const summary: CycleSummary = { id: cycleId, ts, action, reasoning, txHashes };
   appendFileSync(join(DATA_DIR, "cycle_log.jsonl"), `${JSON.stringify(summary)}\n`);
@@ -229,6 +272,9 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
       .catch(() => {});
   }
 
+  // A10: check session loss — halt if pnlUsdc < -MAX_SESSION_LOSS_USD
+  checkSessionLoss();
+
   // Log to HeliosRegistry on-chain (non-blocking, non-fatal)
   logCycleOnChain({ action, txHashes }).catch(() => {});
 
@@ -236,6 +282,28 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
   postRegistryStats(configs).catch(() => {});
 
   return summary;
+}
+
+function readPositions(): Position[] {
+  const path = join(DATA_DIR, "positions.json");
+  if (!existsSync(path)) return [];
+  try { return JSON.parse(readFileSync(path, "utf-8")) as Position[]; } catch { return []; }
+}
+
+function writePosition(position: Position): void {
+  const positions = readPositions();
+  positions.push(position);
+  writeFileSync(join(DATA_DIR, "positions.json"), JSON.stringify(positions, null, 2));
+}
+
+function checkSessionLoss(): void {
+  const positions = readPositions();
+  const pnlUsdc = positions
+    .filter((p) => p.status === "closed" && p.pnlPct !== undefined)
+    .reduce((acc, p) => acc + (p.pnlPct! / 100) * Number.parseFloat(p.sizeUsdc), 0);
+  if (pnlUsdc < -GUARDRAILS.MAX_SESSION_LOSS_USD) {
+    haltSwarm(`Session loss $${pnlUsdc.toFixed(2)} exceeded limit $${GUARDRAILS.MAX_SESSION_LOSS_USD}`);
+  }
 }
 
 async function postRegistryStats(configs: AgentConfigs): Promise<void> {
@@ -248,11 +316,7 @@ async function postRegistryStats(configs: AgentConfigs): Promise<void> {
       .filter(Boolean)
       .map((l) => JSON.parse(l) as CycleSummary);
   })();
-  const positions = (() => {
-    const path = join(DATA_DIR, "positions.json");
-    if (!existsSync(path)) return [] as Position[];
-    try { return JSON.parse(readFileSync(path, "utf-8")) as Position[]; } catch { return []; }
-  })();
+  const positions = readPositions();
 
   const tradeCount = cycleLogs.filter((c) => c.action === "buy").length;
   const pnlUsdc = positions
@@ -266,7 +330,7 @@ async function postRegistryStats(configs: AgentConfigs): Promise<void> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       swarmName: process.env.SWARM_NAME ?? "helios-genesis",
-      model: "gpt-4o",
+      model: configs.curator.llm.model,
       curatorAddress: configs.curator.wallet.address.toLowerCase(),
       returnPct: returnPct.toFixed(4),
       pnlUsdc: pnlUsdc.toFixed(4),

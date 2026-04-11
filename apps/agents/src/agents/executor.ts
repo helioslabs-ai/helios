@@ -29,7 +29,7 @@ Rules:
 - If execution failed, set txHash to null and explain in reasoning
 `;
 
-function parseResult(text: string): DeployResult {
+export function parseResult(text: string): DeployResult {
   const match = text.match(/<RESULT>\s*([\s\S]*?)\s*<\/RESULT>/);
   if (!match) {
     return {
@@ -72,7 +72,7 @@ export async function runExecutorDeploy(
   const result = await generateText({
     apiKey: config.llm.apiKey,
     system: EXECUTOR_SYSTEM_PROMPT,
-    prompt: `${budget}\n\nExecute this instruction:\n${instruction}\n\nUse swap and gateway tools. ${DECISION_PROMPT}`,
+    prompt: `${budget}\nWallet address: ${config.wallet.address}\nAccount ID: ${config.wallet.accountId}\n\nExecute this instruction:\n${instruction}\n\nUse swap and DeFi tools. ${DECISION_PROMPT}`,
     tools: config.tools,
     maxSteps: 10,
   });

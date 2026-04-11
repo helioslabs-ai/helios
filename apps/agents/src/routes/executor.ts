@@ -53,7 +53,6 @@ executorRoutes.post("/deploy", async (c) => {
   const executorBalance = await getWalletBalance(
     executorAccountId,
     EXECUTOR_WALLET,
-    process.env.OKX_API_KEY ?? "",
   ).catch(() => ({ balanceUsdc: "0" }));
 
   const context = buildCycleContext({

@@ -1,9 +1,11 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { GUARDRAILS } from "@helios/shared/guardrails";
 import type { CircuitBreaker, SwarmState } from "./types.js";
 
-const STATE_PATH = join(import.meta.dir, "data/state.json");
+const META_DIR = (import.meta as { dir?: string }).dir ?? dirname(fileURLToPath(import.meta.url));
+const STATE_PATH = join(META_DIR, "data/state.json");
 
 type State = {
   swarmState: SwarmState;
@@ -108,6 +110,17 @@ export function resetCircuitBreaker(): void {
   });
 }
 
+export function resetConsecutiveFailures(): void {
+  const state = load();
+  save({
+    ...state,
+    circuitBreaker: {
+      ...state.circuitBreaker,
+      consecutiveFailures: 0,
+    },
+  });
+}
+
 export function isHalted(): boolean {
   return load().circuitBreaker.halted;
 }
@@ -121,6 +134,6 @@ const VALID_TRANSITIONS: Record<SwarmState, SwarmState[]> = {
   YIELD_PARK: ["IDLE"],
 };
 
-function isValidTransition(from: SwarmState, to: SwarmState): boolean {
+export function isValidTransition(from: SwarmState, to: SwarmState): boolean {
   return VALID_TRANSITIONS[from]?.includes(to) ?? false;
 }

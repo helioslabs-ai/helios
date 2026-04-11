@@ -22,10 +22,11 @@ export const uniswapQuote = tool({
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
+        "x-universal-router-version": "2.0",
       },
       body: JSON.stringify({
-        tokenInChainId: chainId,
-        tokenOutChainId: chainId,
+        tokenInChainId: String(chainId),
+        tokenOutChainId: String(chainId),
         tokenIn,
         tokenOut,
         amount,
