@@ -1,3 +1,4 @@
+import { shouldTakeProfit, shouldTimeStop } from "@helios/shared/guardrails";
 import { generateText } from "../ai/index.js";
 import { buildSentinelBudget, SENTINEL_SYSTEM_PROMPT } from "../prompts/sentinel.js";
 import type { AgentConfig, CycleContext, SentinelVerdict } from "../types.js";
@@ -27,7 +28,7 @@ Rules:
 - riskScore: 0-100, higher = safer
 `;
 
-function parseVerdict(text: string): AssessmentResult {
+export function parseVerdict(text: string): AssessmentResult {
   const match = text.match(/<VERDICT>\s*([\s\S]*?)\s*<\/VERDICT>/);
   if (!match) {
     return {
@@ -82,8 +83,20 @@ export async function reScorePositions(
   config: AgentConfig,
   cycleContext: CycleContext,
 ): Promise<Array<{ token: string; verdict: SentinelVerdict; reasoning: string }>> {
+  if (cycleContext.openPositions.length === 0) return [];
+
   const results = [];
   for (const position of cycleContext.openPositions) {
+    // Check rule-based exits before spending LLM tokens
+    if (shouldTimeStop(position.enteredAt)) {
+      results.push({ token: position.token, verdict: "BLOCK" as SentinelVerdict, reasoning: "72h time stop triggered" });
+      continue;
+    }
+    if (position.pnlPct !== undefined && shouldTakeProfit(position.pnlPct / 100)) {
+      results.push({ token: position.token, verdict: "BLOCK" as SentinelVerdict, reasoning: `Take-profit triggered: +${(position.pnlPct).toFixed(1)}%` });
+      continue;
+    }
+
     const assessment = await runSentinelAssessment(
       config,
       position.token,

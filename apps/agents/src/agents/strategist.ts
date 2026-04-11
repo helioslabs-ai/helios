@@ -31,7 +31,7 @@ Rules:
 - "no_alpha" if nothing scores above 0.4
 `;
 
-function parseDecision(text: string): ScanResult {
+export function parseDecision(text: string): ScanResult {
   const match = text.match(/<DECISION>\s*([\s\S]*?)\s*<\/DECISION>/);
   if (!match) {
     return {
@@ -78,7 +78,7 @@ export async function runStrategistScan(
 
   const result = await generateText({
     apiKey: config.llm.apiKey,
-    system: STRATEGIST_SYSTEM_PROMPT,
+    system: config.prompts.strategy,
     prompt: `${budget}\n\nRun a full alpha scan. Use all available tools. ${DECISION_PROMPT}`,
     tools: config.tools,
     maxSteps: 15,

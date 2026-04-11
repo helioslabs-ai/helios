@@ -1,13 +1,13 @@
 import type { Tool } from "ai";
 import { okxAuditLog } from "./okx-audit-log.js";
-import { okxDefiCollect, okxDefiInvest, okxDefiSearch } from "./okx-defi-invest.js";
+import { okxDefiCollect, okxDefiDeposit, okxDefiInvest, okxDefiSearch } from "./okx-defi-invest.js";
 import { okxDefiPositions } from "./okx-defi-portfolio.js";
 import { okxMarketKline, okxMarketPrice } from "./okx-dex-market.js";
 import { okxDexSignal, okxSmartMoneyTracker } from "./okx-dex-signal.js";
-import { okxSwapExecute, okxSwapQuote } from "./okx-dex-swap.js";
+import { okxSwapFull, okxSwapQuote } from "./okx-dex-swap.js";
 import { okxTokenAdvancedInfo, okxTokenHotTokens, okxTokenPriceInfo } from "./okx-dex-token.js";
 import { okxDexTrenches } from "./okx-dex-trenches.js";
-import { okxGatewayBroadcast, okxGatewayGas, okxGatewaySimulate } from "./okx-onchain-gateway.js";
+import { okxGatewayGas, okxGatewaySimulate } from "./okx-onchain-gateway.js";
 import { okxSecurityTokenScan } from "./okx-security.js";
 import { okxWalletBalances, okxWalletTotalValue } from "./okx-wallet-portfolio.js";
 import { uniswapQuote } from "./uniswap-trading-api.js";
@@ -34,12 +34,11 @@ export const sentinelTools: Record<string, Tool> = {
 
 export const executorTools: Record<string, Tool> = {
   okxSwapQuote,
-  okxSwapExecute,
+  okxSwapFull,
   okxGatewayGas,
   okxGatewaySimulate,
-  okxGatewayBroadcast,
   okxDefiSearch,
-  okxDefiInvest,
+  okxDefiDeposit,
   okxDefiCollect,
 };
 

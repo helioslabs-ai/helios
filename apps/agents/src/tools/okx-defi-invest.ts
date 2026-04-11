@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { tool } from "../ai/tool.js";
+import { preTransactionUnsignedInfo, signAndBroadcast } from "../wallet/index.js";
 import { allItems, CHAIN_INDEX, firstItem, okxFetch } from "./okx-client.js";
+
+const XLAYER_CHAIN_INDEX = 196;
 
 export const okxDefiSearch = tool({
   description:
@@ -77,5 +80,87 @@ export const okxDefiCollect = tool({
       body,
     });
     return firstItem(json);
+  },
+});
+
+/**
+ * Full DeFi deposit via OKX TEE Agentic Wallet.
+ * Gets deposit calldata from OKX DeFi → signs → broadcasts → returns txHash.
+ */
+interface DefiTxEntry {
+  callDataType: "APPROVE" | "DEPOSIT" | string;
+  to: string;
+  value: string;
+  serializedData: string;
+}
+
+/**
+ * Full DeFi deposit via OKX TEE Agentic Wallet.
+ * The OKX DeFi API returns a dataList with APPROVE + DEPOSIT entries.
+ * We sign and broadcast each in sequence, returning the DEPOSIT txHash.
+ */
+export const okxDefiDeposit = tool({
+  description:
+    "Deposit funds into a DeFi yield product (e.g. Aave V3 USDG on X Layer, investmentId: '33906') using the TEE agentic wallet. Handles approval + deposit signing automatically. Returns txHash.",
+  parameters: z.object({
+    investmentId: z.string().describe("Investment product ID. Aave V3 USDG on X Layer = '33906'"),
+    walletAddress: z.string().describe("Depositor wallet address (0x...)"),
+    accountId: z.string().describe("Depositor OKX account ID for TEE signing"),
+    token: z.string().default("USDG").describe("Token symbol to deposit"),
+    amount: z.string().describe("Amount in minimal units (e.g. '1000000' = 1 USDG, 6 decimals)"),
+    slippage: z.string().default("0.01"),
+  }),
+  execute: async ({ investmentId, walletAddress, accountId, token, amount, slippage }) => {
+    const investBody = {
+      chainIndex: CHAIN_INDEX,
+      investmentId,
+      investAddress: walletAddress,
+      investToken: token,
+      investAmount: amount,
+      slippage,
+    };
+
+    // OKX DeFi enter returns dataList: [{callDataType: "APPROVE", ...}, {callDataType: "DEPOSIT", ...}]
+    const investJson = await okxFetch<{ dataList?: DefiTxEntry[] }>(
+      "/api/v6/defi/transaction/enter",
+      { method: "POST", body: investBody },
+    );
+
+    const txList = investJson.dataList ?? [];
+    if (txList.length === 0) throw new Error("No DeFi transaction data returned");
+
+    let depositTxHash = "";
+    let depositOrderId = "";
+
+    for (const tx of txList) {
+      const hexVal = tx.value ?? "0x0";
+      const decimalAmount = hexVal.startsWith("0x")
+        ? BigInt(hexVal).toString()
+        : hexVal;
+
+      const unsignedInfo = await preTransactionUnsignedInfo({
+        accountId,
+        chainIndex: XLAYER_CHAIN_INDEX,
+        fromAddr: walletAddress,
+        toAddr: tx.to,
+        amount: decimalAmount,
+        inputData: tx.serializedData,
+      });
+
+      const result = await signAndBroadcast({
+        accountId,
+        address: walletAddress,
+        chainIndex: CHAIN_INDEX,
+        unsignedInfo,
+      });
+
+      if (tx.callDataType === "DEPOSIT") {
+        depositTxHash = result.txHash;
+        depositOrderId = result.orderId;
+      }
+    }
+
+    if (!depositTxHash) throw new Error("DEPOSIT transaction not found in dataList");
+    return { txHash: depositTxHash, orderId: depositOrderId, investmentId };
   },
 });
