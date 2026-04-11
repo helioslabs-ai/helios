@@ -48,24 +48,24 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 
   /* Helios brand tokens */
-  --color-gold: #f59e0b;
-  --color-gold-bright: #fbbf24;
-  --color-gold-dim: #92400e;
+  --color-gold: #FFA30F;
+  --color-gold-bright: #FFB84D;
+  --color-gold-dim: #7a4a00;
   --color-solar: #f97316;
   --color-emerald: #10b981;
   --color-red: #ef4444;
   --color-blue: #3b82f6;
-  --color-surface: #0f0f1a;
-  --color-surface-raised: #161625;
-  --color-border-dim: #1e1e32;
-  --color-border-bright: #2d2d4e;
+  --color-surface: #0A0C10;
+  --color-surface-raised: #13151C;
+  --color-border-dim: #1a1c24;
+  --color-border-bright: #2a2d3a;
   --color-text: #f1f5f9;
   --color-text-muted: #64748b;
   --color-text-dim: #334155;
-  --color-text-gold: #f59e0b;
+  --color-text-gold: #FFA30F;
 }
 
-/* Original shadcn light theme — preserved */
+/* shadcn light theme */
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -90,7 +90,7 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --radius: 0.5rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -101,39 +101,39 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-/* Helios dark theme — overrides shadcn dark vars */
+/* Helios dark theme */
 .dark {
-  --background: #07070e;
+  --background: #0F0D0E;
   --foreground: #f1f5f9;
-  --card: #0f0f1a;
+  --card: #0A0C10;
   --card-foreground: #f1f5f9;
-  --popover: #161625;
+  --popover: #13151C;
   --popover-foreground: #f1f5f9;
-  --primary: #f59e0b;
-  --primary-foreground: #07070e;
-  --secondary: #161625;
+  --primary: #FFA30F;
+  --primary-foreground: #0F0D0E;
+  --secondary: #13151C;
   --secondary-foreground: #f1f5f9;
-  --muted: #1e1e32;
+  --muted: #1a1c24;
   --muted-foreground: #64748b;
-  --accent: #1e1e32;
-  --accent-foreground: #f59e0b;
+  --accent: #1a1c24;
+  --accent-foreground: #FFA30F;
   --destructive: #ef4444;
-  --border: #1e1e32;
-  --input: #1e1e32;
-  --ring: #f59e0b;
-  --chart-1: #f59e0b;
+  --border: #1a1c24;
+  --input: #1a1c24;
+  --ring: #FFA30F;
+  --chart-1: #FFA30F;
   --chart-2: #10b981;
   --chart-3: #3b82f6;
   --chart-4: #f97316;
   --chart-5: #ef4444;
-  --sidebar: #0f0f1a;
+  --sidebar: #0A0C10;
   --sidebar-foreground: #f1f5f9;
-  --sidebar-primary: #f59e0b;
-  --sidebar-primary-foreground: #07070e;
-  --sidebar-accent: #1e1e32;
+  --sidebar-primary: #FFA30F;
+  --sidebar-primary-foreground: #0F0D0E;
+  --sidebar-accent: #1a1c24;
   --sidebar-accent-foreground: #f1f5f9;
-  --sidebar-border: #1e1e32;
-  --sidebar-ring: #f59e0b;
+  --sidebar-border: #1a1c24;
+  --sidebar-ring: #FFA30F;
 }
 
 @layer base {
@@ -146,64 +146,72 @@
   html {
     @apply font-sans;
   }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: #0A0C10; }
+  ::-webkit-scrollbar-thumb { background: #1a1c24; border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: #2a2d3a; }
 }
 
-/* Glow shadows */
+/* ── Glow shadows ─────────────────────────────────────────────────────── */
 .shadow-gold-glow {
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.25);
+  box-shadow: 0 0 24px rgba(255, 163, 15, 0.2), 0 0 6px rgba(255, 163, 15, 0.1);
 }
 .shadow-emerald-glow {
-  box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.18);
 }
 .shadow-red-glow {
-  box-shadow: 0 0 16px rgba(239, 68, 68, 0.2);
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.18);
 }
 
+/* ── Animations ───────────────────────────────────────────────────────── */
 @keyframes pulse-gold {
-  0%,
-  100% {
-    opacity: 1;
-    box-shadow: 0 0 6px rgba(245, 158, 11, 0.8);
-  }
-  50% {
-    opacity: 0.5;
-    box-shadow: 0 0 2px rgba(245, 158, 11, 0.3);
-  }
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(255, 163, 15, 0.8); }
+  50%       { opacity: 0.5; box-shadow: 0 0 2px rgba(255, 163, 15, 0.3); }
 }
-.animate-pulse-gold {
-  animation: pulse-gold 2s ease-in-out infinite;
-}
+.animate-pulse-gold { animation: pulse-gold 2s ease-in-out infinite; }
 
 @keyframes blink-red {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
 }
-.animate-blink-red {
-  animation: blink-red 1s ease-in-out infinite;
-}
+.animate-blink-red { animation: blink-red 1s ease-in-out infinite; }
 
 @keyframes slide-in {
-  from {
-    opacity: 0;
-    transform: translateX(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
-.animate-slide-in {
-  animation: slide-in 0.25s ease-out forwards;
-}
+.animate-slide-in { animation: slide-in 0.25s ease-out forwards; }
 
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fade-up 0.3s ease-out forwards; }
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow { animation: spin-slow 3s linear infinite; }
+
+/* ── Grid texture ─────────────────────────────────────────────────────── */
 .bg-grid {
   background-image:
-    linear-gradient(rgba(245, 158, 11, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(245, 158, 11, 0.03) 1px, transparent 1px);
-  background-size: 24px 24px;
+    linear-gradient(rgba(255, 163, 15, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 163, 15, 0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* ── Radial glow ──────────────────────────────────────────────────────── */
+.bg-radial-gold {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255, 163, 15, 0.12) 0%, transparent 70%),
+    #0F0D0E;
+}
+
+.bg-radial-gold-center {
+  background:
+    radial-gradient(ellipse 60% 60% at 50% 50%, rgba(255, 163, 15, 0.10) 0%, transparent 70%),
+    #0F0D0E;
 }
