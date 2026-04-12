@@ -83,7 +83,7 @@ Works with Claude Code, Cursor, and any MCP-compatible agent:
 }
 ```
 
-MCP tools: `get_system_status` · `get_signals` · `get_positions` · `get_economy` · `get_cycle_history` · `run_cycle`
+MCP tools: `get_system_status` · `get_signals` · `get_positions` · `get_economy` · `get_cycle_history` · `get_agents` · `get_registry` · `run_cycle`
 
 ### CLI — Full Command Reference
 

@@ -45,7 +45,14 @@ Curator
 
 ## Connect via MCP
 
-Add to your `.mcp.json` or Claude Code settings:
+A `.mcp.json` is included at the repo root pointing to the live production API — no local setup required:
+
+```bash
+# Connect to live Helios (production)
+cp .mcp.json .mcp.json   # already done — just open Claude Code in the repo root
+
+# Or connect to a local instance
+```
 
 ```json
 {
@@ -54,39 +61,32 @@ Add to your `.mcp.json` or Claude Code settings:
       "command": "bun",
       "args": ["run", "packages/mcp/src/index.ts"],
       "env": {
-        "HELIOS_API_URL": "http://localhost:3001"
+        "HELIOS_API_URL": "https://api.heliosfi.xyz"
       }
     }
   }
 }
 ```
 
-> A `.mcp.json` is included at the repo root — copy it to `.mcp.json` to connect automatically.
-
-**Requires:** A running Helios agent runtime (`cd apps/agents && bun dev`).
+**Local instance:** set `HELIOS_API_URL=http://localhost:3001` and run `cd apps/agents && bun dev` first.
 
 ---
 
-## MCP Tools (6)
+## MCP Tools (8)
 
 ### `get_system_status`
 
-Returns the full swarm state: current state machine phase, circuit breaker status, last cycle summary, and all four agent wallet addresses.
+Returns the full swarm state: current state machine phase, circuit breaker status, last cycle summary, consecutive failures.
 
 **No parameters.**
 
 **Returns:**
 ```json
 {
-  "state": "IDLE",
-  "circuitBreaker": { "halted": false, "consecutiveFailures": 0 },
-  "lastCycle": { "id": "...", "action": "yield_park", "timestamp": "..." },
-  "agents": {
-    "curator": { "address": "0x...", "lastAction": "orchestrate" },
-    "strategist": { "address": "0x...", "lastAction": "scan" },
-    "sentinel": { "address": "0x...", "lastAction": "assess" },
-    "executor": { "address": "0x...", "lastAction": "yield_park" }
-  }
+  "swarmState": "IDLE",
+  "circuitBreaker": { "halted": false, "consecutiveFailures": 0, "reason": null },
+  "lastCycleAt": "2026-04-12T03:00:00Z",
+  "totalCycles": 48
 }
 ```
 
@@ -94,23 +94,28 @@ Returns the full swarm state: current state machine phase, circuit breaker statu
 
 ### `get_signals`
 
-Returns the Strategist's latest alpha scan — top token pick, composite score, and signal breakdown.
+Returns the latest Strategist alpha scan — most recent cycle reasoning, action taken (buy / yield_park / no_alpha), and Sentinel verdict. Pass `n` to get multiple recent cycles.
 
-**No parameters.**
+**Parameters:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `n` | number | 1 | Number of recent cycles to return |
 
 **Returns:**
 ```json
 {
-  "topToken": "OKB",
-  "contractAddress": "0x...",
-  "compositeScore": 0.74,
-  "recommendation": "buy",
-  "signals": {
-    "smartMoney": { "score": 0.8, "whaleActivity": true },
-    "momentum": { "score": 0.7, "trend": "up" },
-    "security": { "score": 0.9, "flags": [] }
-  },
-  "scannedAt": "2026-04-07T04:00:00Z"
+  "cycles": [
+    {
+      "id": "uuid",
+      "ts": "2026-04-12T03:00:00Z",
+      "action": "yield_park",
+      "reasoning": "Smart money signals weak. Parking in Aave V3.",
+      "sentinelVerdict": null,
+      "txHashes": ["0x..."]
+    }
+  ],
+  "count": 48
 }
 ```
 
@@ -201,6 +206,52 @@ Returns the last N cycle logs including Claude's reasoning, Sentinel verdict, an
 
 ---
 
+### `get_agents`
+
+Returns all 4 Helios agents with wallet addresses and OKX account IDs.
+
+**No parameters.**
+
+**Returns:**
+```json
+{
+  "agents": [
+    { "name": "curator", "address": "0x075a...", "accountId": "..." },
+    { "name": "strategist", "address": "0x473...", "accountId": "..." },
+    { "name": "sentinel", "address": "0x31a0...", "accountId": "..." },
+    { "name": "executor", "address": "0x258e...", "accountId": "..." }
+  ]
+}
+```
+
+---
+
+### `get_registry`
+
+Returns the live leaderboard — all active swarms ranked by return%, with PnL, trade count, cycle count, and status.
+
+**No parameters.**
+
+**Returns:**
+```json
+{
+  "swarms": [
+    {
+      "swarmName": "helios-genesis",
+      "model": "gpt-4o",
+      "curatorAddress": "0x075a...",
+      "returnPct": "2.4",
+      "pnlUsdc": "0.24",
+      "tradeCount": 12,
+      "cycleCount": 48,
+      "status": "active"
+    }
+  ]
+}
+```
+
+---
+
 ### `run_cycle`
 
 Triggers a manual cycle immediately (bypasses the 30-min interval timer).
@@ -209,14 +260,23 @@ Triggers a manual cycle immediately (bypasses the 30-min interval timer).
 
 **Returns:**
 ```json
-{
-  "triggered": true,
-  "cycleId": "uuid",
-  "message": "Cycle started"
-}
+{ "status": "triggered", "cycleId": "uuid" }
 ```
 
-> **Note:** Will refuse if circuit breaker is tripped (`halted: true`). Check `get_system_status` first.
+> **Note:** Returns `{ status: "halted" }` if circuit breaker is tripped. Check `get_system_status` first.
+
+---
+
+## MCP Resources (4)
+
+Direct resource reads — usable via `resources/read` in any MCP client:
+
+| URI | Description |
+|-----|-------------|
+| `helios://status` | Current swarm state + circuit breaker |
+| `helios://economy` | x402 payment history + per-agent totals |
+| `helios://positions` | Open positions + yield position + P&L |
+| `helios://agents` | All 4 agents with wallet addresses |
 
 ---
 
