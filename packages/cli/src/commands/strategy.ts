@@ -20,7 +20,12 @@ function readEnv(): Record<string, string> {
 function writeEnv(values: Record<string, string>) {
   const existing = readEnv();
   const merged = { ...existing, ...values };
-  writeFileSync(ENV_PATH, `${Object.entries(merged).map(([k, v]) => `${k}=${v}`).join("\n")}\n`);
+  writeFileSync(
+    ENV_PATH,
+    `${Object.entries(merged)
+      .map(([k, v]) => `${k}=${v}`)
+      .join("\n")}\n`,
+  );
 }
 
 export async function strategyCommand() {

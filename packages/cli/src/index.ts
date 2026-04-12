@@ -64,10 +64,7 @@ program
   .description("Register swarm on leaderboard and trigger first cycle")
   .action(startCommand);
 
-program
-  .command("stop")
-  .description("Halt the swarm (operator stop)")
-  .action(stopCommand);
+program.command("stop").description("Halt the swarm (operator stop)").action(stopCommand);
 
 program
   .command("strategy")
