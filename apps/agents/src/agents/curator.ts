@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { GUARDRAILS, maxTradeSize } from "@helios/shared/guardrails";
 import { settleX402 } from "@helios/shared/payments";
@@ -24,6 +24,8 @@ import { reScorePositions } from "./sentinel.js";
 
 const DATA_DIR = join(import.meta.dir, "../data");
 const API_URL = process.env.API_URL ?? "http://localhost:3001";
+
+mkdirSync(DATA_DIR, { recursive: true });
 
 type AgentConfigs = Record<AgentName, AgentConfig>;
 
