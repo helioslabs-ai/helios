@@ -30,7 +30,7 @@ executorRoutes.post("/deploy", async (c) => {
     });
   }
 
-  const verification = okxVerifyX402Payment(xPayment, EXECUTOR_WALLET, X402_DEPLOY_PRICE);
+  const verification = await okxVerifyX402Payment(xPayment, EXECUTOR_WALLET, X402_DEPLOY_PRICE);
   if (!verification.isValid) {
     return c.json({ error: `Invalid payment: ${verification.invalidReason}` }, 402);
   }

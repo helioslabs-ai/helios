@@ -29,7 +29,7 @@ strategistRoutes.get("/scan", async (c) => {
     });
   }
 
-  const verification = okxVerifyX402Payment(xPayment, STRATEGIST_WALLET, X402_SCAN_PRICE);
+  const verification = await okxVerifyX402Payment(xPayment, STRATEGIST_WALLET, X402_SCAN_PRICE);
   if (!verification.isValid) {
     return c.json({ error: `Invalid payment: ${verification.invalidReason}` }, 402);
   }
