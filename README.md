@@ -273,7 +273,7 @@ Pass `--json` to any command for raw JSON output.
 
 ### Connect via MCP
 
-Works with Claude Code, Cursor, and any MCP-compatible agent.
+Works with Claude Code, Cursor, and any MCP-compatible agent. A `.mcp.json` is included at the repo root — open the repo in Claude Code and it connects automatically.
 
 ```json
 {
@@ -287,7 +287,7 @@ Works with Claude Code, Cursor, and any MCP-compatible agent.
 }
 ```
 
-Tools: `get_system_status` · `get_signals` · `get_positions` · `get_economy` · `get_cycle_history` · `run_cycle`
+Tools (8): `get_system_status` · `get_signals` · `get_positions` · `get_economy` · `get_cycle_history` · `get_agents` · `get_registry` · `run_cycle`
 
 ### SKILL.md
 

@@ -160,7 +160,32 @@
 
 ## Phase 4 — MCP + Skills
 
-_Tasks TBD when Phase 3 merges_
+**Branch:** `phase/mcp-skills`
+
+### MCP server
+
+- [x] **M1 — Fix `get_signals` tool** — now calls `/api/logs?n=1`; exposes latest cycle reasoning/action
+- [x] **M2 — Add `get_agents` tool** — calls `/api/agents`
+- [x] **M3 — Add `get_registry` tool** — calls `/api/registry`; returns leaderboard
+- [x] **M4 — Add missing resources** — `helios://positions`, `helios://agents` added
+- [x] **M5 — Version bump** — `"0.0.1"` → `"1.0.0"` in package.json + McpServer init
+
+### Skills / discoverability
+
+- [x] **M6 — Create `.mcp.json` at repo root** — points to `https://api.heliosfi.xyz`
+
+### Integration tests (A14 from Phase 1)
+
+- [x] **M7 — Dry-run integration tests for OKX read-only tools**
+      File: `apps/agents/src/tools/okx-integration.test.ts` — already existed and was complete
+      Read-only: `okxSwapQuote`, `okxGatewayGas`, `okxSecurityTokenScan`, `okxDexSignal`, `okxTokenHotTokens`
+      Write tools: `.skip` — `okxSwapFull`, `okxGatewayBroadcast`, `okxDefiDeposit`
+
+### Verification
+
+- [x] `bun biome check packages/mcp/` — clean
+- [x] `tsc --noEmit` on mcp package — clean
+- [x] `zod` added to mcp deps (v3 for SDK compatibility)
 
 ## Phase 5 - Live + Submission
 
@@ -178,7 +203,7 @@ _Tasks TBD when Phase 3 merges_
 
 ## Current
 
-**Working on:** Phase 4 — MCP + Skills
-**Branch:** `phase/mcp-skills` (to be created)
-**Status:** Phase 3 complete. All CLI commands pretty-printed, HELIOS_API_URL supported, SKILL.md updated. tsc clean.
-**Next:** Create `phase/mcp-skills` branch. Tasks TBD — MCP server improvements, Skills Arena deliverables.
+**Working on:** Phase 5 — Live + Submission
+**Branch:** `main`
+**Status:** Phase 4 complete. MCP server fixed + expanded (8 tools, 4 resources), .mcp.json created, A14 tests confirmed, tsc + biome clean.
+**Next:** Deploy agents live, accumulate 1000+ onchain txns, Moltbook registration, README polish, demo video, submit.
