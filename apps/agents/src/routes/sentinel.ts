@@ -29,7 +29,7 @@ sentinelRoutes.get("/assess", async (c) => {
     });
   }
 
-  const verification = await okxVerifyX402Payment(xPayment, SENTINEL_WALLET, X402_ASSESS_PRICE);
+  const verification = okxVerifyX402Payment(xPayment, SENTINEL_WALLET, X402_ASSESS_PRICE);
   if (!verification.isValid) {
     return c.json({ error: `Invalid payment: ${verification.invalidReason}` }, 402);
   }

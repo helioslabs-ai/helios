@@ -8,7 +8,7 @@ import { buildAgentConfigs } from "../config.js";
 import { getDb } from "../db/client.js";
 import type { HeliosRegistryInsert } from "../db/schema/index.js";
 import { heliosRegistry } from "../db/schema/index.js";
-import { getState, haltSwarm, isHalted, resetCircuitBreaker, tripCircuitBreaker } from "../state.js";
+import { getState, haltSwarm, isHalted, resetCircuitBreaker, setState, tripCircuitBreaker } from "../state.js";
 import type { AgentName, CycleSummary, EconomyEntry, Position } from "../types.js";
 
 const DATA_DIR = join(import.meta.dir, "../data");
@@ -182,6 +182,7 @@ api.post("/registry", async (c) => {
 
 api.post("/reset", (c) => {
   resetCircuitBreaker();
+  setState("IDLE");
   return c.json({ ok: true, reset: true });
 });
 

@@ -1,6 +1,7 @@
 import { runCycle, startCycleLoop } from "./agents/curator.js";
 import { app } from "./app.js";
 import { buildAgentConfigs } from "./config.js";
+import { setState } from "./state.js";
 
 const PORT = Number(process.env.PORT) || 3001;
 const ENABLE_AGENTS = process.env.ENABLE_AGENTS === "true";
@@ -14,7 +15,10 @@ if (ENABLE_AGENTS) {
   const configs = buildAgentConfigs();
 
   // First cycle immediately on boot, then on interval
-  runCycle(configs).catch((err) => console.error("[Helios] Boot cycle failed:", err));
+  runCycle(configs).catch((err) => {
+    console.error("[Helios] Boot cycle failed:", err);
+    setState("IDLE");
+  });
   startCycleLoop(configs, INTERVAL_MS);
 
   console.log("[Helios] Agent cycle loop started");

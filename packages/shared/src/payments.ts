@@ -54,16 +54,6 @@ interface DecodedPayment {
   payload?: X402Payload;
 }
 
-interface OkxVerifyResponse {
-  code: string;
-  data: Array<{
-    isValid: boolean;
-    payer: string;
-    invalidReason: string | null;
-  }>;
-  msg?: string;
-}
-
 interface OkxSettleResponse {
   code: string;
   data: Array<{
@@ -97,58 +87,44 @@ function okxHmacHeaders(
 }
 
 /**
- * SERVER: Validate an incoming X-Payment header via OKX /api/v6/x402/verify.
+ * SERVER: Validate the X-Payment header locally.
+ * Checks structure, payTo address, amount, and expiry.
+ * The OKX settle call handles signature validation.
  */
-export async function okxVerifyX402Payment(
+export function okxVerifyX402Payment(
   xPaymentHeader: string,
   payTo: string,
   maxAmount: string,
-): Promise<{ isValid: boolean; payer: string; invalidReason: string | null }> {
-  const apiKey = process.env.OKX_API_KEY ?? "";
-  const secretKey = process.env.OKX_SECRET_KEY ?? "";
-  const passphrase = process.env.OKX_PASSPHRASE ?? "";
+): { isValid: boolean; payer: string; invalidReason: string | null } {
+  try {
+    const decoded = JSON.parse(
+      Buffer.from(xPaymentHeader, "base64").toString("utf8"),
+    ) as DecodedPayment;
 
-  const decoded = JSON.parse(
-    Buffer.from(xPaymentHeader, "base64").toString("utf8"),
-  ) as DecodedPayment;
+    const auth = decoded.payload?.authorization;
+    const sig = decoded.payload?.signature;
 
-  if (!decoded.payload) {
-    return { isValid: false, payer: "", invalidReason: "Missing payload field" };
+    if (!auth || !sig) {
+      return { isValid: false, payer: "", invalidReason: "Missing payload fields" };
+    }
+
+    if (auth.to?.toLowerCase() !== payTo.toLowerCase()) {
+      return { isValid: false, payer: auth.from, invalidReason: "payTo mismatch" };
+    }
+
+    if (BigInt(auth.value ?? "0") < BigInt(maxAmount)) {
+      return { isValid: false, payer: auth.from, invalidReason: "Insufficient amount" };
+    }
+
+    const validBefore = Number(auth.validBefore ?? 0);
+    if (validBefore < Math.floor(Date.now() / 1000)) {
+      return { isValid: false, payer: auth.from, invalidReason: "Authorization expired" };
+    }
+
+    return { isValid: true, payer: auth.from, invalidReason: null };
+  } catch {
+    return { isValid: false, payer: "", invalidReason: "Invalid payment header format" };
   }
-
-  const acceptedScheme = decoded.accepted?.scheme ?? "exact";
-  const path = "/api/v6/x402/verify";
-  const bodyObj = {
-    x402Version: decoded.x402Version ?? 1,
-    chainIndex: XLAYER_CHAIN_INDEX,
-    paymentPayload: {
-      x402Version: decoded.x402Version ?? 1,
-      scheme: acceptedScheme,
-      payload: decoded.payload,
-    },
-    paymentRequirements: {
-      scheme: "exact",
-      maxAmountRequired: maxAmount,
-      payTo,
-      asset: XLAYER_USDG,
-      maxTimeoutSeconds: 300,
-      extra: { name: "USDG", version: "2" },
-    },
-  };
-  const body = JSON.stringify(bodyObj);
-  const headers = okxHmacHeaders("POST", path, body, apiKey, secretKey, passphrase);
-
-  const res = await fetch(`${OKX_BASE}${path}`, { method: "POST", headers, body });
-  const json = (await res.json()) as OkxVerifyResponse;
-
-  if (!res.ok || (json.code && json.code !== "0")) {
-    return { isValid: false, payer: "", invalidReason: json.msg ?? `HTTP ${res.status}` };
-  }
-
-  const result = json.data?.[0];
-  if (!result) return { isValid: false, payer: "", invalidReason: "OKX verify returned no data" };
-
-  return result;
 }
 
 /**
