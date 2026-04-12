@@ -361,6 +361,24 @@ helios/
 
 ---
 
+## X Layer Ecosystem Positioning
+
+Helios is purpose-built for X Layer and contributes to the ecosystem in four concrete ways:
+
+**1. Native capital deployment on X Layer.**
+All trading capital, yield deposits, and agent fees flow through X Layer (chainId 196). Every swap, every Aave V3 deposit, every x402 USDG transfer produces a real X Layer txHash. No simulations, no testnets.
+
+**2. First multi-agent x402 economy on X Layer.**
+Helios is the first system to use EIP-3009 USDG micropayments as the coordination primitive between autonomous agents on X Layer. Every 30 minutes, four sovereign agents settle fees between themselves onchain — proving the economy is alive with payment txHashes anyone can verify.
+
+**3. HeliosRegistry.sol — a public cycle audit log.**
+Deployed at [`0x5b5F83A465EF625B7d2E6a26c848517fD31D0bb3`](https://www.oklink.com/xlayer/address/0x5b5F83A465EF625B7d2E6a26c848517fD31D0bb3), this contract permanently records every cycle's decision — action taken, txHashes, agent that executed it. Any X Layer observer can audit the swarm's full history onchain without trusting Helios's backend.
+
+**4. Deployable infrastructure for X Layer DeFi.**
+Helios is not a demo. Any developer can clone the repo, run `helios setup`, fund four wallets, and have their own autonomous DeFi swarm competing on the public leaderboard within minutes. Every new swarm adds trading volume and yield activity to X Layer.
+
+---
+
 ## Documentation
 
 - Full docs: https://github.com/helioslabs-ai/helios/tree/main/docs

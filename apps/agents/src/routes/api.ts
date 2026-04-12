@@ -1,13 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { eq, desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { runCycle } from "../agents/curator.js";
 import { buildAgentConfigs } from "../config.js";
 import { getDb } from "../db/client.js";
-import { heliosRegistry } from "../db/schema/index.js";
 import type { HeliosRegistryInsert } from "../db/schema/index.js";
+import { heliosRegistry } from "../db/schema/index.js";
 import { getState, haltSwarm, isHalted, tripCircuitBreaker } from "../state.js";
 import type { AgentName, CycleSummary, EconomyEntry, Position } from "../types.js";
 
@@ -109,10 +109,7 @@ api.post("/cycle", async (c) => {
 api.get("/registry", async (c) => {
   const db = getDb();
   if (!db) return c.json({ swarms: [] });
-  const rows = await db
-    .select()
-    .from(heliosRegistry)
-    .orderBy(desc(heliosRegistry.returnPct));
+  const rows = await db.select().from(heliosRegistry).orderBy(desc(heliosRegistry.returnPct));
   const swarms = rows.map((r) => ({
     id: r.id,
     swarmName: r.isPrivate ? "Private agent" : r.swarmName,

@@ -56,7 +56,8 @@ describe("parseVerdict", () => {
   });
 
   it("treats unknown verdict strings as BLOCK", () => {
-    const text = '<VERDICT>{"verdict":"UNKNOWN","riskScore":50,"flags":[],"reasoning":"test"}</VERDICT>';
+    const text =
+      '<VERDICT>{"verdict":"UNKNOWN","riskScore":50,"flags":[],"reasoning":"test"}</VERDICT>';
     const result = parseVerdict(text);
     expect(result.verdict).toBe("BLOCK");
   });

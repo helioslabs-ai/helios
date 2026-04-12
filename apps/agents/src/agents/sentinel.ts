@@ -89,11 +89,19 @@ export async function reScorePositions(
   for (const position of cycleContext.openPositions) {
     // Check rule-based exits before spending LLM tokens
     if (shouldTimeStop(position.enteredAt)) {
-      results.push({ token: position.token, verdict: "BLOCK" as SentinelVerdict, reasoning: "72h time stop triggered" });
+      results.push({
+        token: position.token,
+        verdict: "BLOCK" as SentinelVerdict,
+        reasoning: "72h time stop triggered",
+      });
       continue;
     }
     if (position.pnlPct !== undefined && shouldTakeProfit(position.pnlPct / 100)) {
-      results.push({ token: position.token, verdict: "BLOCK" as SentinelVerdict, reasoning: `Take-profit triggered: +${(position.pnlPct).toFixed(1)}%` });
+      results.push({
+        token: position.token,
+        verdict: "BLOCK" as SentinelVerdict,
+        reasoning: `Take-profit triggered: +${(position.pnlPct).toFixed(1)}%`,
+      });
       continue;
     }
 

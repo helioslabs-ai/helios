@@ -104,8 +104,24 @@ describe("buildCycleContext", () => {
 
   it("includes only open positions", () => {
     const positions: Position[] = [
-      { token: "OKB", contractAddress: "0x1", entryPrice: "1.00", sizeUsdc: "0.80", entryTxHash: "0xa", enteredAt: new Date().toISOString(), status: "open" },
-      { token: "WETH", contractAddress: "0x2", entryPrice: "2.00", sizeUsdc: "1.00", entryTxHash: "0xb", enteredAt: new Date().toISOString(), status: "closed" },
+      {
+        token: "OKB",
+        contractAddress: "0x1",
+        entryPrice: "1.00",
+        sizeUsdc: "0.80",
+        entryTxHash: "0xa",
+        enteredAt: new Date().toISOString(),
+        status: "open",
+      },
+      {
+        token: "WETH",
+        contractAddress: "0x2",
+        entryPrice: "2.00",
+        sizeUsdc: "1.00",
+        entryTxHash: "0xb",
+        enteredAt: new Date().toISOString(),
+        status: "closed",
+      },
     ];
     vi.mocked(existsSync).mockImplementation((p) => String(p).includes("positions"));
     vi.mocked(readFileSync).mockImplementation((p) => {

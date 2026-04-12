@@ -79,7 +79,9 @@ describe("isValidTransition", () => {
 describe("tripCircuitBreaker", () => {
   it("increments consecutiveFailures on first call", () => {
     tripCircuitBreaker("network error");
-    const state = storedState as { circuitBreaker: { consecutiveFailures: number; halted: boolean } };
+    const state = storedState as {
+      circuitBreaker: { consecutiveFailures: number; halted: boolean };
+    };
     expect(state.circuitBreaker.consecutiveFailures).toBe(1);
     expect(state.circuitBreaker.halted).toBe(false);
   });
@@ -89,7 +91,9 @@ describe("tripCircuitBreaker", () => {
     vi.mocked(existsSync).mockReturnValue(true);
     tripCircuitBreaker("err2");
     tripCircuitBreaker("err3");
-    const state = storedState as { circuitBreaker: { consecutiveFailures: number; halted: boolean; reason: string } };
+    const state = storedState as {
+      circuitBreaker: { consecutiveFailures: number; halted: boolean; reason: string };
+    };
     expect(state.circuitBreaker.halted).toBe(true);
     expect(state.circuitBreaker.reason).toBe("err3");
   });
@@ -119,7 +123,9 @@ describe("resetCircuitBreaker", () => {
     haltSwarm("test halt");
     vi.mocked(existsSync).mockReturnValue(true);
     resetCircuitBreaker();
-    const state = storedState as { circuitBreaker: { halted: boolean; reason: unknown; consecutiveFailures: number } };
+    const state = storedState as {
+      circuitBreaker: { halted: boolean; reason: unknown; consecutiveFailures: number };
+    };
     expect(state.circuitBreaker.halted).toBe(false);
     expect(state.circuitBreaker.reason).toBeNull();
     expect(state.circuitBreaker.consecutiveFailures).toBe(0);

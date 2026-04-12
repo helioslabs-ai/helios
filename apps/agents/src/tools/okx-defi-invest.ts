@@ -134,9 +134,7 @@ export const okxDefiDeposit = tool({
 
     for (const tx of txList) {
       const hexVal = tx.value ?? "0x0";
-      const decimalAmount = hexVal.startsWith("0x")
-        ? BigInt(hexVal).toString()
-        : hexVal;
+      const decimalAmount = hexVal.startsWith("0x") ? BigInt(hexVal).toString() : hexVal;
 
       const unsignedInfo = await preTransactionUnsignedInfo({
         accountId,

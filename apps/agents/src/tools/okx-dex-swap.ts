@@ -57,10 +57,15 @@ export const okxSwapFull = tool({
 
     // Step 1: If ERC-20 source, get and broadcast approval first
     if (!isNative(fromAddr)) {
-      const approveJson = await okxFetch<{ data?: Array<{ data: string; gasLimit: string; gasPrice: string; to: string }> }>(
-        "/api/v6/dex/aggregator/approve-transaction",
-        { params: { chainIndex: CHAIN_INDEX, tokenContractAddress: fromAddr, approveAmount: readableAmount } },
-      );
+      const approveJson = await okxFetch<{
+        data?: Array<{ data: string; gasLimit: string; gasPrice: string; to: string }>;
+      }>("/api/v6/dex/aggregator/approve-transaction", {
+        params: {
+          chainIndex: CHAIN_INDEX,
+          tokenContractAddress: fromAddr,
+          approveAmount: readableAmount,
+        },
+      });
       const approveData = approveJson.data?.[0];
       if (approveData) {
         const approveUnsigned = await preTransactionUnsignedInfo({
@@ -82,19 +87,21 @@ export const okxSwapFull = tool({
     }
 
     // Step 2: Get swap calldata
-    const swapJson = await okxFetch<{ data?: Array<{ tx: { to: string; data: string; value: string; gas: string }; routerResult?: { toTokenAmount: string } }> }>(
-      "/api/v6/dex/aggregator/swap",
-      {
-        params: {
-          chainIndex: CHAIN_INDEX,
-          fromTokenAddress: fromAddr,
-          toTokenAddress: toAddr,
-          amount: readableAmount,
-          userWalletAddress: walletAddress,
-          slippagePercent: slippage,
-        },
+    const swapJson = await okxFetch<{
+      data?: Array<{
+        tx: { to: string; data: string; value: string; gas: string };
+        routerResult?: { toTokenAmount: string };
+      }>;
+    }>("/api/v6/dex/aggregator/swap", {
+      params: {
+        chainIndex: CHAIN_INDEX,
+        fromTokenAddress: fromAddr,
+        toTokenAddress: toAddr,
+        amount: readableAmount,
+        userWalletAddress: walletAddress,
+        slippagePercent: slippage,
       },
-    );
+    });
     const swapItem = swapJson.data?.[0];
     if (!swapItem?.tx) throw new Error("No swap transaction data returned");
 

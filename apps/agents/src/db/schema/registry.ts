@@ -1,4 +1,4 @@
-import { boolean, numeric, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, integer, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const heliosRegistry = pgTable("helios_registry", {
   id: uuid("id").primaryKey().defaultRandom(),

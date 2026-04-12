@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import {
   GUARDRAILS,
   isAboveMinTrade,
@@ -7,6 +6,7 @@ import {
   shouldTakeProfit,
   shouldTimeStop,
 } from "@helios/shared/guardrails";
+import { describe, expect, it } from "vitest";
 
 describe("maxTradeSize", () => {
   it("caps at MAX_POSITION_USD when 20% exceeds $1", () => {

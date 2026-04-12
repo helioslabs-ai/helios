@@ -189,15 +189,27 @@
 
 ## Phase 5 - Live + Submission
 
-- deploy helios-agents live managing real capital
-- 1000+ onchain tnx accumulated (11th-15th April)
-- Moltbook: register agent, subscribe to m/buildx, post ProjectSubmission, vote ≥5 (Agent Track)
+**Branch:** `main`
 
-- codebase clean
-- README and docs polish
-- Demo video (1-3mins)
-- X post #XLayerHackathon @XLayerOfficial
-- Google Form submission (Human Track)
+### Code tasks (done)
+
+- [x] **P1 — Codebase clean** — biome: 0 errors, 10 style warnings only. Auto-fixed 14 files.
+- [x] **P2 — README polish** — added "X Layer Ecosystem Positioning" section (required field per hackathon rules)
+- [x] **P3 — SKILL.md live** — verified at heliosfi.xyz/skill.md (v1.0.0, 8 MCP tools)
+
+### Manual tasks (you)
+
+- [ ] **P4 — Fund wallets + start agents** — `helios start` on live Render instance with real capital
+- [ ] **P5 — Accumulate 1000+ onchain txns** — automated once agents are running (target before Apr 15)
+- [ ] **P6 — Moltbook Agent Track**
+      - Register Helios agent on Moltbook
+      - Subscribe to m/buildx
+      - Post ProjectSubmission with template
+      - Vote ≥5 projects
+- [ ] **P7 — Demo video** — 1–3 min, upload to YouTube or Google Drive, get public link
+- [ ] **P8 — X post** — #XLayerHackathon @XLayerOfficial, include project name + images/video
+- [ ] **P9 — Google Form submission** — before Apr 15, 23:59 UTC
+      https://docs.google.com/forms/d/e/1FAIpQLSfEjzs4ny2yH04tfDXs14Byye1KYhXv6NeytpqSKhrqTtgKqg/viewform
 
 ---
 
@@ -205,5 +217,6 @@
 
 **Working on:** Phase 5 — Live + Submission
 **Branch:** `main`
-**Status:** Phase 4 complete. MCP server fixed + expanded (8 tools, 4 resources), .mcp.json created, A14 tests confirmed, tsc + biome clean.
+**Status:** P1-P3 done. Codebase clean, README complete. Waiting on live agent deployment + manual submission tasks.
+**Next:** P4 fund wallets + start agents → P5 accumulate txns → P6-P9 submission checklist.
 **Next:** Deploy agents live, accumulate 1000+ onchain txns, Moltbook registration, README polish, demo video, submit.

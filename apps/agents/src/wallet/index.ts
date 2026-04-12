@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import { Aead, CipherSuite, Kdf, Kem } from "hpke-js";
 import { keccak_256 } from "@noble/hashes/sha3.js";
+import { Aead, CipherSuite, Kdf, Kem } from "hpke-js";
 import type { AgentName } from "../types.js";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -184,17 +184,27 @@ async function getSession(accountId: string): Promise<WalletSession> {
 const HPKE_INFO = new TextEncoder().encode("okx-tee-sign");
 const ED25519_PKCS8_PREFIX = Buffer.from("302e020100300506032b657004220420", "hex");
 
-async function hpkeDecryptSessionSk(encryptedB64: string, sessionKeyB64: string): Promise<Uint8Array> {
+async function hpkeDecryptSessionSk(
+  encryptedB64: string,
+  sessionKeyB64: string,
+): Promise<Uint8Array> {
   const encrypted = Buffer.from(encryptedB64, "base64");
   const skBytes = Buffer.from(sessionKeyB64, "base64");
 
   const enc = encrypted.subarray(0, 32);
   const ciphertext = encrypted.subarray(32);
 
-  const suite = new CipherSuite({ kem: Kem.DhkemX25519HkdfSha256, kdf: Kdf.HkdfSha256, aead: Aead.Aes256Gcm });
+  const suite = new CipherSuite({
+    kem: Kem.DhkemX25519HkdfSha256,
+    kdf: Kdf.HkdfSha256,
+    aead: Aead.Aes256Gcm,
+  });
   const recipientKey = await suite.importKey(
     "raw",
-    skBytes.buffer.slice(skBytes.byteOffset, skBytes.byteOffset + skBytes.byteLength) as ArrayBuffer,
+    skBytes.buffer.slice(
+      skBytes.byteOffset,
+      skBytes.byteOffset + skBytes.byteLength,
+    ) as ArrayBuffer,
     false,
   );
   const ctx = await suite.createRecipientContext({ recipientKey, enc, info: HPKE_INFO });
@@ -316,17 +326,11 @@ type WalletBalance = {
   balanceUsdc: string;
 };
 
-export async function getWalletBalance(
-  accountId: string,
-  address: string,
-): Promise<WalletBalance> {
+export async function getWalletBalance(accountId: string, address: string): Promise<WalletBalance> {
   const ts = new Date().toISOString();
   const path = `/api/v5/waas/asset/token-assets?accountId=${accountId}&chainIndex=196`;
   const secretKey = process.env.OKX_SECRET_KEY ?? "";
-  const sign = crypto
-    .createHmac("sha256", secretKey)
-    .update(`${ts}GET${path}`)
-    .digest("base64");
+  const sign = crypto.createHmac("sha256", secretKey).update(`${ts}GET${path}`).digest("base64");
 
   const res = await fetch(`${WAAS_BASE}/asset/token-assets?accountId=${accountId}&chainIndex=196`, {
     headers: {

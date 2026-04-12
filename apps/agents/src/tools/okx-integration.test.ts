@@ -8,7 +8,11 @@
  */
 import { describe, expect, it } from "vitest";
 
-const HAS_KEYS = !!(process.env.OKX_API_KEY && process.env.OKX_SECRET_KEY && process.env.OKX_PASSPHRASE);
+const HAS_KEYS = !!(
+  process.env.OKX_API_KEY &&
+  process.env.OKX_SECRET_KEY &&
+  process.env.OKX_PASSPHRASE
+);
 
 // OKB native address on X Layer
 const OKB = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
@@ -22,7 +26,10 @@ const MOCK_TOOL_OPTIONS = { toolCallId: "test", messages: [] as never[] };
 describe.skipIf(!HAS_KEYS)("okxSwapQuote — read-only", () => {
   it("returns quote with toTokenAmount for OKB→USDC", async () => {
     const { okxSwapQuote } = await import("./okx-dex-swap.js");
-    const result = await okxSwapQuote.execute!({ fromToken: "native", toToken: USDC, readableAmount: "0.01", chain: "xlayer" }, MOCK_TOOL_OPTIONS);
+    const result = await okxSwapQuote.execute!(
+      { fromToken: "native", toToken: USDC, readableAmount: "0.01", chain: "xlayer" },
+      MOCK_TOOL_OPTIONS,
+    );
     expect(result).toHaveProperty("toTokenAmount");
     expect(result).toHaveProperty("fromTokenAmount");
     expect(typeof (result as { toTokenAmount: unknown }).toTokenAmount).toBe("string");
@@ -41,7 +48,10 @@ describe.skipIf(!HAS_KEYS)("okxGatewayGas — read-only", () => {
 describe.skipIf(!HAS_KEYS)("okxSecurityTokenScan — read-only", () => {
   it("returns verdict and riskLevel for WOKB", async () => {
     const { okxSecurityTokenScan } = await import("./okx-security.js");
-    const result = await okxSecurityTokenScan.execute!({ address: OKB_CONTRACT, chain: "xlayer" }, MOCK_TOOL_OPTIONS);
+    const result = await okxSecurityTokenScan.execute!(
+      { address: OKB_CONTRACT, chain: "xlayer" },
+      MOCK_TOOL_OPTIONS,
+    );
     const r = result as { verdict: string; riskLevel: string; isHoneypot: boolean };
     expect(["CLEAR", "BLOCK"]).toContain(r.verdict);
     expect(typeof r.riskLevel).toBe("string");

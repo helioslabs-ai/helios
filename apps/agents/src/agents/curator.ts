@@ -84,7 +84,10 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
   // A4: fallback to zero balances on API failure — never crash the cycle
   const balances = await getAllBalances(wallets).catch((err) => {
     console.warn("[Curator] getAllBalances failed, using zero fallback:", err);
-    return { curator: "0", strategist: "0", sentinel: "0", executor: "0" } as Record<AgentName, string>;
+    return { curator: "0", strategist: "0", sentinel: "0", executor: "0" } as Record<
+      AgentName,
+      string
+    >;
   });
   const cycleContext = buildCycleContext(balances);
 
@@ -287,7 +290,11 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
 function readPositions(): Position[] {
   const path = join(DATA_DIR, "positions.json");
   if (!existsSync(path)) return [];
-  try { return JSON.parse(readFileSync(path, "utf-8")) as Position[]; } catch { return []; }
+  try {
+    return JSON.parse(readFileSync(path, "utf-8")) as Position[];
+  } catch {
+    return [];
+  }
 }
 
 function writePosition(position: Position): void {
@@ -302,7 +309,9 @@ function checkSessionLoss(): void {
     .filter((p) => p.status === "closed" && p.pnlPct !== undefined)
     .reduce((acc, p) => acc + (p.pnlPct! / 100) * Number.parseFloat(p.sizeUsdc), 0);
   if (pnlUsdc < -GUARDRAILS.MAX_SESSION_LOSS_USD) {
-    haltSwarm(`Session loss $${pnlUsdc.toFixed(2)} exceeded limit $${GUARDRAILS.MAX_SESSION_LOSS_USD}`);
+    haltSwarm(
+      `Session loss $${pnlUsdc.toFixed(2)} exceeded limit $${GUARDRAILS.MAX_SESSION_LOSS_USD}`,
+    );
   }
 }
 

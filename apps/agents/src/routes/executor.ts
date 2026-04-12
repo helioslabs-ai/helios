@@ -50,10 +50,9 @@ executorRoutes.post("/deploy", async (c) => {
   const instruction = body.instruction ?? "Execute best available opportunity on X Layer.";
 
   const executorAccountId = process.env.EXECUTOR_ACCOUNT_ID ?? "";
-  const executorBalance = await getWalletBalance(
-    executorAccountId,
-    EXECUTOR_WALLET,
-  ).catch(() => ({ balanceUsdc: "0" }));
+  const executorBalance = await getWalletBalance(executorAccountId, EXECUTOR_WALLET).catch(() => ({
+    balanceUsdc: "0",
+  }));
 
   const context = buildCycleContext({
     curator: "0",
