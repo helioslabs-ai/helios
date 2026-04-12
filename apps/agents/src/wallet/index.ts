@@ -318,6 +318,185 @@ export async function signAndBroadcast(params: {
   );
 }
 
+// ── x402 payment signing ──────────────────────────────────────────────────────
+
+const XLAYER_CHAIN_INDEX = "196";
+
+interface X402Requirement {
+  network?: string;
+  amount: string;
+  asset?: string;
+  payTo: string;
+  maxTimeoutSeconds?: number;
+  extra?: Record<string, unknown>;
+}
+
+interface X402Authorization {
+  from: string;
+  to: string;
+  value: string;
+  validAfter: string;
+  validBefore: string;
+  nonce: string;
+}
+
+interface X402Proof {
+  signature: string;
+  authorization: X402Authorization;
+}
+
+export interface X402SettleResult {
+  txHash: string | null;
+  body: unknown;
+  amount: string;
+}
+
+async function signX402(
+  payerAddress: string,
+  accountId: string,
+  requirement: X402Requirement,
+): Promise<X402Proof> {
+  const session = await akLogin(accountId);
+
+  const now = Math.floor(Date.now() / 1000);
+  const validBefore = (now + (requirement.maxTimeoutSeconds ?? 300)).toString();
+  const nonce = `0x${crypto.randomBytes(32).toString("hex")}`;
+
+  const baseFields = {
+    accountId,
+    chainIndex: Number(XLAYER_CHAIN_INDEX),
+    from: payerAddress,
+    to: requirement.payTo,
+    value: requirement.amount,
+    validAfter: "0",
+    validBefore,
+    nonce,
+    verifyingContract: requirement.asset,
+  };
+
+  const headers = jwtHeaders(session.accessToken);
+
+  // Step 1: Get EIP-3009 unsigned hash from TEE
+  const genHashRes = await fetch(`${TEE_BASE}${WALLET_PREFIX}/pre-transaction/gen-msg-hash`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(baseFields),
+  });
+  const genHashJson = (await genHashRes.json()) as {
+    code: string | number;
+    msg: string;
+    data: Array<{ msgHash: string; domainHash: string }>;
+  };
+
+  if (genHashJson.code !== "0" && genHashJson.code !== 0) {
+    throw new Error(`gen-msg-hash failed [${genHashJson.code}]: ${genHashJson.msg}`);
+  }
+
+  const { msgHash, domainHash } = genHashJson.data[0];
+
+  // Step 2: HPKE decrypt → Ed25519 seed → sign msgHash locally
+  const seed = await hpkeDecryptSessionSk(session.encryptedSessionSk, session.sessionPrivateKey);
+  const msgHashBytes = Buffer.from(msgHash.replace(/^0x/, ""), "hex");
+  const sessionSignature = Buffer.from(ed25519Sign(seed, msgHashBytes)).toString("base64");
+
+  // Step 3: TEE produces final EIP-3009 secp256k1 signature
+  const signRes = await fetch(`${TEE_BASE}${WALLET_PREFIX}/pre-transaction/sign-msg`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      ...baseFields,
+      domainHash,
+      sessionCert: session.sessionCert,
+      sessionSignature,
+    }),
+  });
+  const signJson = (await signRes.json()) as {
+    code: string | number;
+    msg: string;
+    data: Array<{ signature: string }>;
+  };
+
+  if (signJson.code !== "0" && signJson.code !== 0) {
+    throw new Error(`sign-msg failed [${signJson.code}]: ${signJson.msg}`);
+  }
+
+  return {
+    signature: signJson.data[0].signature,
+    authorization: {
+      from: payerAddress,
+      to: requirement.payTo,
+      value: requirement.amount,
+      validAfter: "0",
+      validBefore,
+      nonce,
+    },
+  };
+}
+
+/**
+ * CLIENT: Curator calls this to access an x402-gated agent route.
+ * Probes the URL → gets 402 → TEE-signs EIP-3009 via direct OKX APIs → replays with payment header.
+ */
+export async function settleX402(
+  serviceUrl: string,
+  payerAddress: string,
+  accountId: string,
+  init?: RequestInit,
+): Promise<X402SettleResult> {
+  // 1. Probe — expect 402
+  const probe = await fetch(serviceUrl, init);
+
+  if (probe.status !== 402) {
+    const body = await probe.json().catch(() => ({}));
+    return { txHash: null, body, amount: "0" };
+  }
+
+  // 2. Parse X-Payment-Required
+  const requirementB64 = probe.headers.get("X-Payment-Required");
+  if (!requirementB64) throw new Error("No X-Payment-Required header in 402 response");
+
+  const decoded = JSON.parse(Buffer.from(requirementB64, "base64").toString("utf-8")) as {
+    x402Version?: number;
+    accepts: X402Requirement[];
+  };
+  const accepted = decoded.accepts[0];
+
+  // 3. TEE sign EIP-3009
+  const proof = await signX402(payerAddress, accountId, accepted);
+
+  // 4. Build X-Payment header
+  const paymentPayload = {
+    x402Version: decoded.x402Version ?? 1,
+    accepted,
+    payload: { signature: proof.signature, authorization: proof.authorization },
+  };
+  const xPayment = Buffer.from(JSON.stringify(paymentPayload)).toString("base64");
+
+  // 5. Replay with payment
+  const paid = await fetch(serviceUrl, {
+    ...(init ?? {}),
+    headers: { ...(init?.headers as Record<string, string>), "X-Payment": xPayment },
+  });
+
+  if (!paid.ok) {
+    const errBody = await paid.text();
+    throw new Error(`x402 payment rejected (${paid.status}): ${errBody}`);
+  }
+
+  const paidBody = await paid.json().catch(() => ({}));
+  let txHash: string | null = null;
+
+  const xPaymentResponse = paid.headers.get("X-Payment-Response");
+  if (xPaymentResponse) {
+    const receipt = JSON.parse(
+      Buffer.from(xPaymentResponse, "base64").toString("utf-8"),
+    ) as { txHash?: string; transaction?: string };
+    txHash = receipt.txHash ?? receipt.transaction ?? null;
+  }
+
+  return { txHash, body: paidBody, amount: accepted.amount };
+}
+
 // ── Balance helpers ───────────────────────────────────────────────────────────
 
 type WalletBalance = {

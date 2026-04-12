@@ -1,27 +1,11 @@
-import { spawnSync } from "node:child_process";
 import { createHmac } from "node:crypto";
 import { XLAYER_USDG, XLAYER_X402_NETWORK } from "./chains.js";
 
 const OKX_BASE = "https://www.okx.com/api/v5/waas";
-const ONCHAINOS_BIN = process.env.ONCHAINOS_BIN ?? "onchainos";
 
 export const X402_SCAN_PRICE = "1000";
 export const X402_ASSESS_PRICE = "1000";
 export const X402_DEPLOY_PRICE = "1000";
-
-export type X402Receipt = {
-  txHash: string;
-  amount: string;
-  from: string;
-  to: string;
-  ts: string;
-};
-
-export type X402SettleResult = {
-  txHash: string | null;
-  body: unknown;
-  amount: string;
-};
 
 interface X402Option {
   network: string;
@@ -32,6 +16,7 @@ interface X402Option {
   maxTimeoutSeconds?: number;
   resource?: string;
   description?: string;
+  [key: string]: unknown;
 }
 
 interface X402Requirement {
@@ -72,97 +57,6 @@ function okxHmacHeaders(
     "OK-ACCESS-TIMESTAMP": ts,
     "OK-ACCESS-PASSPHRASE": passphrase,
   };
-}
-
-/**
- * CLIENT: Curator calls this to access an x402-gated agent route.
- * Probes the URL → gets 402 → signs via onchainos CLI → replays with payment header.
- */
-export async function settleX402(
-  serviceUrl: string,
-  payerAddress: string,
-  init?: RequestInit,
-): Promise<X402SettleResult> {
-  // 1. Probe — expect 402
-  const probe = await fetch(serviceUrl, init);
-
-  if (probe.status !== 402) {
-    const body = await probe.json().catch(() => ({}));
-    return { txHash: null, body, amount: "0" };
-  }
-
-  // 2. Parse X-Payment-Required
-  const requirementB64 = probe.headers.get("X-Payment-Required");
-  if (!requirementB64) throw new Error("No X-Payment-Required header in 402 response");
-
-  const requirement = JSON.parse(
-    Buffer.from(requirementB64, "base64").toString("utf8"),
-  ) as X402Requirement;
-  const option = requirement.accepts[0];
-  const amount = option.amount ?? option.maxAmountRequired ?? X402_SCAN_PRICE;
-
-  // 3. Sign via onchainos CLI
-  const args = [
-    "payment",
-    "x402-pay",
-    "--network",
-    option.network ?? XLAYER_X402_NETWORK,
-    "--amount",
-    amount,
-    "--pay-to",
-    option.payTo,
-    "--asset",
-    option.asset ?? XLAYER_USDG,
-    "--from",
-    payerAddress,
-    "--max-timeout-seconds",
-    String(option.maxTimeoutSeconds ?? 300),
-  ];
-
-  const payResult = spawnSync(ONCHAINOS_BIN, args, {
-    encoding: "utf8",
-    env: { ...process.env },
-    timeout: 30_000,
-  });
-
-  if (payResult.error) throw new Error(`x402 sign spawn error: ${payResult.error.message}`);
-  if (payResult.status !== 0) throw new Error(`x402 sign failed: ${payResult.stderr}`);
-
-  const payData = JSON.parse(payResult.stdout.trim()) as
-    | { ok?: boolean; data?: X402Payload }
-    | X402Payload;
-  const { signature, authorization } = (
-    "data" in payData && payData.data ? payData.data : payData
-  ) as X402Payload;
-
-  // 4. Assemble X-Payment header
-  const paymentPayload = { ...requirement, payload: { signature, authorization } };
-  const xPayment = Buffer.from(JSON.stringify(paymentPayload)).toString("base64");
-
-  // 5. Replay with payment
-  const paid = await fetch(serviceUrl, {
-    ...(init ?? {}),
-    headers: { ...(init?.headers as Record<string, string>), "X-Payment": xPayment },
-  });
-
-  if (!paid.ok) {
-    const errBody = await paid.text();
-    throw new Error(`x402 payment rejected (${paid.status}): ${errBody}`);
-  }
-
-  const paidBody = await paid.json().catch(() => ({}));
-  let txHash: string | null = null;
-
-  const xPaymentResponse = paid.headers.get("X-Payment-Response");
-  if (xPaymentResponse) {
-    const receipt = JSON.parse(Buffer.from(xPaymentResponse, "base64").toString("utf8")) as {
-      txHash?: string;
-      transaction?: string;
-    };
-    txHash = receipt.txHash ?? receipt.transaction ?? null;
-  }
-
-  return { txHash, body: paidBody, amount };
 }
 
 /**

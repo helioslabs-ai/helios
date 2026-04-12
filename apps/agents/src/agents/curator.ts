@@ -1,7 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { GUARDRAILS, maxTradeSize } from "@helios/shared/guardrails";
-import { settleX402 } from "@helios/shared/payments";
+import { settleX402 } from "../wallet/index.js";
 import { getDb } from "../db/client.js";
 import { cycles, economyEntries } from "../db/schema/index.js";
 import { buildCycleContext } from "../memory/index.js";
@@ -110,8 +110,9 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
 
   // Phase 2: Strategist scan via x402
   const curatorAddress = configs.curator.wallet.address;
+  const curatorAccountId = configs.curator.wallet.accountId;
   const scanUrl = `${API_URL}/agents/strategist/scan`;
-  const scanResult = await settleX402(scanUrl, curatorAddress);
+  const scanResult = await settleX402(scanUrl, curatorAddress, curatorAccountId);
 
   appendEconomyLog({
     cycleId,
@@ -141,7 +142,7 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
     // Phase 3: Sentinel assessment via x402
     setState("SENTINEL_CHECK");
     const assessUrl = `${API_URL}/agents/sentinel/assess?token=${encodeURIComponent(scan.topToken)}&contract=${encodeURIComponent(scan.topContract ?? "")}`;
-    const assessResult = await settleX402(assessUrl, curatorAddress);
+    const assessResult = await settleX402(assessUrl, curatorAddress, curatorAccountId);
 
     appendEconomyLog({
       cycleId,
@@ -165,7 +166,7 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
       const executorBalanceUsdc = Number.parseFloat(cycleContext.walletBalances.executor ?? "0");
       const sizeUsdc = maxTradeSize(executorBalanceUsdc).toFixed(2);
       const instruction = `BUY ${scan.topToken} (contract: ${scan.topContract ?? "unknown"}): size $${sizeUsdc} USDC, score ${scan.compositeScore ?? 0}, signals ${scan.signalCount ?? 0}`;
-      const deployResult = await settleX402(deployUrl, curatorAddress, {
+      const deployResult = await settleX402(deployUrl, curatorAddress, curatorAccountId, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ instruction }),
@@ -215,7 +216,7 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
     setState("YIELD_PARK");
     const deployUrl = `${API_URL}/agents/executor/deploy`;
     const instruction = "Park idle USDC in Aave V3 — no alpha found this cycle";
-    const parkResult = await settleX402(deployUrl, curatorAddress, {
+    const parkResult = await settleX402(deployUrl, curatorAddress, curatorAccountId, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ instruction }),
