@@ -125,7 +125,38 @@
 
 ## Phase 3 — CLI
 
-_Tasks TBD when Phase 2 merges_
+**Branch:** `phase/cli-improvements`
+
+### Gaps (all 12 commands exist, quality issues only)
+
+- [x] **C1 — Pretty-print all read commands**
+      `status`, `agents`, `economy`, `positions`, `logs`, `cycle` all dump raw `console.log(data)`.
+      Use `@clack/prompts` box/note/log for readable terminal output.
+      `--json` flag bypasses formatting (already wired, just needs the non-JSON path to be pretty).
+      Priority layout per command: - `status` → swarm state badge, circuit breaker (halted/ok), last cycle time, consecutive failures - `agents` → table: name | address | accountId - `economy` → total paid, per-agent breakdown (Strategist / Sentinel / Executor earned) - `positions` → open trades table (token, size, entry, P&L%), yield position (protocol, APY, amount) - `logs [n]` → numbered cycle entries: timestamp | action | reasoning | tx hashes - `cycle` → success/error banner with cycleId
+
+- [x] **C2 — http.ts URL resolution**
+      Support `HELIOS_API_URL` env var (remote: `api.heliosfi.xyz`) with fallback to `API_URL`.
+      `HELIOS_API_URL` takes precedence. Required for CLI to target the live remote instance.
+
+- [x] **C3 — Fix `start` command model hardcode**
+      `model: "gpt-4o"` is hardcoded in `start.ts` sent to leaderboard registry.
+      Read from env: check `OPENAI_API_KEY` presence, use `"gpt-4o"` as default but allow override via `SWARM_MODEL` env var.
+
+- [x] **C4 — Update SKILL.md**
+      Current SKILL.md is missing `start`, `stop`, `strategy`, `guardrails`, `seed` in the CLI table.
+      References `apps/web` (old) — update to `apps/dashboard`.
+      Env vars section: remove `ANTHROPIC_API_KEY` (not used), add `OPENAI_API_KEY`, `UNISWAP_API_KEY`.
+      Fix homepage/docs URLs to use `github.com/helioslabs-ai/helios`.
+      Add `HELIOS_API_URL` to env table for remote targeting.
+
+### Verification
+
+- [x] `bun run packages/cli/src/index.ts status` — formatted output, not raw object
+- [x] `bun run packages/cli/src/index.ts logs 3` — readable cycle entries
+- [x] `bun run packages/cli/src/index.ts status --json` — clean JSON
+- [x] `HELIOS_API_URL=https://api.heliosfi.xyz bun run packages/cli/src/index.ts status` — hits remote
+- [x] `tsc --noEmit` clean on cli package
 
 ## Phase 4 — MCP + Skills
 
@@ -135,9 +166,10 @@ _Tasks TBD when Phase 3 merges_
 
 - deploy helios-agents live managing real capital
 - 1000+ onchain tnx accumulated (11th-15th April)
+- Moltbook: register agent, subscribe to m/buildx, post ProjectSubmission, vote ≥5 (Agent Track)
+
 - codebase clean
 - README and docs polish
-- Moltbook: register agent, subscribe to m/buildx, post ProjectSubmission, vote ≥5 (Agent Track)
 - Demo video (1-3mins)
 - X post #XLayerHackathon @XLayerOfficial
 - Google Form submission (Human Track)
@@ -146,5 +178,7 @@ _Tasks TBD when Phase 3 merges_
 
 ## Current
 
-**Working on:** Phase 3 — CLI
-**Status:** Phase 2 complete. tsc clean, build passes. Dashboard on `phase/dashboard-improvements`.
+**Working on:** Phase 4 — MCP + Skills
+**Branch:** `phase/mcp-skills` (to be created)
+**Status:** Phase 3 complete. All CLI commands pretty-printed, HELIOS_API_URL supported, SKILL.md updated. tsc clean.
+**Next:** Create `phase/mcp-skills` branch. Tasks TBD — MCP server improvements, Skills Arena deliverables.

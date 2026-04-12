@@ -3,8 +3,8 @@ name: helios
 version: 1.0.0
 description: Query and control the Helios multi-agent DeFi economy on X Layer. Use when you need to check swarm state, read cycle logs, inspect open positions, view x402 payment history, trigger a manual cycle, or get alpha signals from the running Strategist agent.
 homepage: https://heliosfi.xyz
-docs: https://github.com/lucent-labs/helios
-metadata: {"api_base": "http://localhost:3001", "chain": "X Layer (chainId 196)", "mcp_server": "packages/mcp/src/index.ts"}
+docs: https://github.com/helioslabs-ai/helios
+metadata: {"api_base": "https://api.heliosfi.xyz", "chain": "X Layer (chainId 196)", "mcp_server": "packages/mcp/src/index.ts"}
 ---
 
 # Helios
@@ -251,13 +251,18 @@ bun run packages/cli/src/index.ts <command>
 
 | Command | Description |
 |---------|-------------|
+| `setup` | First-run setup wizard → name, strategy, guardrails, keys → 4 TEE wallets |
+| `seed` | Show wallet addresses and funding amounts |
+| `start` | Start the cycle loop and register on leaderboard |
+| `stop` | Halt the swarm |
+| `strategy` | Update strategy prompt (no restart needed) |
+| `guardrails` | Update Max Trade Size / Max Total Loss / Interval (no restart needed) |
 | `status` | Swarm state, circuit breaker, last cycle |
 | `cycle` | Trigger a manual cycle |
 | `economy` | x402 payment history + per-agent totals |
 | `positions` | Open positions + yield position + P&L |
 | `logs [n]` | Last N cycle logs (default 5) |
 | `agents` | All 4 agents, addresses, balances |
-| `setup` | First-run setup wizard |
 
 Pass `--json` to any command for raw JSON output.
 
@@ -291,24 +296,25 @@ cp .env.example apps/agents/.env
 cd apps/agents && bun dev
 
 # Start war room dashboard (port 3000)
-cd apps/web && bun dev
+cd apps/dashboard && bun dev
 ```
 
 **Environment variables required:**
 
 | Variable | Description |
 |----------|-------------|
-| `OKX_PROJECT_ID` | OKX OnchainOS project ID |
 | `OKX_API_KEY` | OKX API key |
 | `OKX_SECRET_KEY` | OKX API secret |
 | `OKX_PASSPHRASE` | OKX API passphrase |
-| `CURATOR_ACCOUNT_ID` | OKX TEE Agentic Wallet ID for Curator |
-| `STRATEGIST_ACCOUNT_ID` | OKX TEE Agentic Wallet ID for Strategist |
-| `SENTINEL_ACCOUNT_ID` | OKX TEE Agentic Wallet ID for Sentinel |
-| `EXECUTOR_ACCOUNT_ID` | OKX TEE Agentic Wallet ID for Executor |
-| `ANTHROPIC_API_KEY` | Claude API key (powers all 4 agents) |
+| `CURATOR_WALLET_ADDRESS` | OKX TEE wallet address for Curator |
+| `STRATEGIST_WALLET_ADDRESS` | OKX TEE wallet address for Strategist |
+| `SENTINEL_WALLET_ADDRESS` | OKX TEE wallet address for Sentinel |
+| `EXECUTOR_WALLET_ADDRESS` | OKX TEE wallet address for Executor |
+| `OPENAI_API_KEY` | OpenAI API key (powers all 4 agents via gpt-4o) |
+| `UNISWAP_API_KEY` | Uniswap Trading API key (route comparison) |
 | `HELIOS_REGISTRY_ADDRESS` | Deployed HeliosRegistry.sol address on X Layer |
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_ANON_KEY` | Supabase anon key |
+| `HELIOS_API_URL` | Override API base URL (default: `https://api.heliosfi.xyz`) |
 
 See `.env.example` for the full list.

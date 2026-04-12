@@ -22,7 +22,6 @@ export async function startCommand() {
   const env = readEnv();
   const swarmName = env.SWARM_NAME ?? "helios-genesis";
   const curatorAddress = env.CURATOR_WALLET_ADDRESS;
-  const apiUrl = env.API_URL ?? "http://localhost:3001";
 
   p.intro("Helios Start");
 
@@ -33,11 +32,13 @@ export async function startCommand() {
 
   const s = p.spinner();
 
+  const model = env.SWARM_MODEL ?? "gpt-4o";
+
   s.start("Registering swarm on leaderboard...");
   try {
     await post("/api/registry", {
       swarmName,
-      model: "gpt-4o",
+      model,
       curatorAddress,
       returnPct: "0",
       pnlUsdc: "0",
@@ -58,5 +59,6 @@ export async function startCommand() {
     s.stop(`Cycle trigger failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  p.outro(`Monitor at ${apiUrl}/dashboard`);
+  const dashboardUrl = env.DASHBOARD_URL ?? "https://heliosfi.xyz/dashboard";
+  p.outro(`Monitor at ${dashboardUrl}  ·  or run: helios status`);
 }
