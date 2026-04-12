@@ -392,7 +392,14 @@ async function signX402(
     throw new Error(`gen-msg-hash failed [${genHashJson.code}]: ${genHashJson.msg}`);
   }
 
-  const { msgHash, domainHash } = genHashJson.data[0];
+  const hashData = genHashJson.data?.[0];
+  if (!hashData?.msgHash) {
+    throw new Error(
+      `gen-msg-hash returned no msgHash. Raw response: ${JSON.stringify(genHashJson)}`,
+    );
+  }
+
+  const { msgHash, domainHash } = hashData;
 
   // Step 2: HPKE decrypt → Ed25519 seed → sign msgHash locally
   const seed = await hpkeDecryptSessionSk(session.encryptedSessionSk, session.sessionPrivateKey);
@@ -420,8 +427,13 @@ async function signX402(
     throw new Error(`sign-msg failed [${signJson.code}]: ${signJson.msg}`);
   }
 
+  const sig = signJson.data?.[0]?.signature;
+  if (!sig) {
+    throw new Error(`sign-msg returned no signature. Raw response: ${JSON.stringify(signJson)}`);
+  }
+
   return {
-    signature: signJson.data[0].signature,
+    signature: sig,
     authorization: {
       from: payerAddress,
       to: requirement.payTo,
@@ -488,9 +500,10 @@ export async function settleX402(
 
   const xPaymentResponse = paid.headers.get("X-Payment-Response");
   if (xPaymentResponse) {
-    const receipt = JSON.parse(
-      Buffer.from(xPaymentResponse, "base64").toString("utf-8"),
-    ) as { txHash?: string; transaction?: string };
+    const receipt = JSON.parse(Buffer.from(xPaymentResponse, "base64").toString("utf-8")) as {
+      txHash?: string;
+      transaction?: string;
+    };
     txHash = receipt.txHash ?? receipt.transaction ?? null;
   }
 

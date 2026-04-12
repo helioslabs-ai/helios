@@ -360,7 +360,6 @@ export function startCycleLoop(configs: AgentConfigs, intervalMs: number): NodeJ
       console.log(`[Curator] Cycle ${summary.id}: ${summary.action}`);
     } catch (err) {
       console.error("[Curator] Cycle failed:", err);
-      setState("IDLE");
       tripCircuitBreaker(err instanceof Error ? err.message : "Unknown error");
     }
   }, intervalMs);
