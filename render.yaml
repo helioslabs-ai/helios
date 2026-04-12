@@ -3,20 +3,20 @@ services:
     name: helios-agents
     runtime: bun
     rootDir: .
-    buildCommand: bun install
+    buildCommand: bun install && curl -fsSL https://github.com/okx/onchainos-skills/releases/download/v2.2.8/onchainos-x86_64-unknown-linux-gnu -o /usr/local/bin/onchainos && chmod +x /usr/local/bin/onchainos
     startCommand: bun run apps/agents/src/index.ts
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
       - key: ENABLE_AGENTS
-        value: "false"
+        value: "true"
       - key: CHECK_INTERVAL_MINUTES
-        value: "60"
+        value: "30"
       - key: XLAYER_RPC_URL
         value: https://rpc.xlayer.tech
       - key: API_URL
-        sync: false
+        value: http://localhost:10000
       - key: OKX_PROJECT_ID
         sync: false
       - key: OKX_API_KEY
