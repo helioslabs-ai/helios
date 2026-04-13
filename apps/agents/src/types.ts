@@ -56,6 +56,13 @@ export type CycleSummary = {
   reasoning: string;
   txHashes: string[];
   sentinelVerdict?: SentinelVerdict;
+  transactions?: Array<{
+    txHash: string;
+    kind: "x402_payment" | "trade" | "yield_deposit" | "trade_exit";
+    agent: AgentName;
+    context: string;
+    serviceUrl?: string;
+  }>;
 };
 
 export type CycleContext = {

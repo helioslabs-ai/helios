@@ -1,6 +1,6 @@
 # AGENTS.md — Helios
 
-**Helios** is a sovereign, self-sustaining multi-agent DeFi economy on X Layer. Four specialized AI agents autonomously find yield, execute trades, monitor risk, and compound profits — coordinating via x402 USDG micropayments with no human in the loop. Every agent payment is onchain proof the pipeline ran. Every cycle produces a txHash. Capital on autopilot.
+**Helios** is a sovereign, self-sustaining multi-agent DeFi economy on X Layer. Four specialized AI agents autonomously find yield, execute trades, manage risk, and compound capital — coordinating via x402 USDG micropayments with no human in the loop. Every agent payment is onchain proof the pipeline ran. Every cycle produces a txHash. Capital on autopilot.
 
 **Built for:** OKX Build X Hackathon — Season 2 · X Layer Arena + Skills Arena
 **Live:** https://heliosfi.xyz/dashboard

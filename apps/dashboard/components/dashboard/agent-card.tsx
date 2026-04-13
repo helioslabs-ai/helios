@@ -30,6 +30,13 @@ const AGENT_ROLES: Record<string, string> = {
   executor: "Trade Engine",
 };
 
+const AGENT_DESCRIPTIONS: Record<string, string> = {
+  curator: "Coordinates every cycle, pays agents via x402, and compounds capital.",
+  strategist: "Scans for high-conviction alpha and yield opportunities on X Layer.",
+  sentinel: "Scores risk before execution and blocks unsafe deployments.",
+  executor: "Executes swaps and yield deposits, then records onchain outcomes.",
+};
+
 function getAgentStatus(
   agentName: string,
   swarmState: SwarmState,
@@ -39,6 +46,12 @@ function getAgentStatus(
   const activeAgent = AGENT_ACTIVE_STATE[swarmState];
   if (activeAgent === agentName)
     return { label: "ACTIVE", color: "text-gold", dotColor: "bg-gold animate-pulse-gold" };
+  if (swarmState === "YIELD_PARK" && agentName === "executor")
+    return {
+      label: "DEPOSITING",
+      color: "text-emerald",
+      dotColor: "bg-emerald animate-pulse-gold",
+    };
   if (swarmState !== "IDLE" && agentName === "curator")
     return { label: "RUNNING", color: "text-gold", dotColor: "bg-gold animate-pulse-gold" };
   return { label: "IDLE", color: "text-text-muted", dotColor: "bg-text-muted" };
@@ -81,6 +94,9 @@ export function AgentCard({ agent, swarmState, isHalted }: Props) {
       <div className="flex flex-col gap-1">
         <span className="text-[10px] font-mono text-text-dim uppercase tracking-widest">
           {AGENT_ROLES[agent.name]}
+        </span>
+        <span className="font-mono text-[11px] leading-relaxed text-text-muted">
+          {AGENT_DESCRIPTIONS[agent.name]}
         </span>
         {agent.address ? (
           <a

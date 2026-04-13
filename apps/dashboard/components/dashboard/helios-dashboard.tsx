@@ -4,13 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
-  AreaChart,
   Area,
-  BarChart,
+  AreaChart,
   Bar,
+  BarChart,
   Cell,
-  PieChart,
   Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -24,16 +24,16 @@ import type {
   DashboardData,
   LeaderboardEntry,
   Position,
-  SentinelVerdict,
   SwarmState,
   SwarmStatus,
+  TransactionRow,
   YieldPosition,
 } from "@/lib/types";
 import { cn, formatAbsoluteTime, formatRelativeTime, truncateAddress } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Tab = "overview" | "cycles" | "portfolio" | "economy" | "leaderboard";
+type Tab = "overview" | "transactions" | "portfolio" | "economy" | "leaderboard";
 
 interface Props {
   initial: DashboardData;
@@ -41,24 +41,6 @@ interface Props {
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-
-const STATE_LABEL: Record<SwarmState, string> = {
-  IDLE: "IDLE",
-  STRATEGIST_SCAN: "SCANNING",
-  SENTINEL_CHECK: "ASSESSING",
-  EXECUTOR_DEPLOY: "DEPLOYING",
-  COMPOUNDING: "COMPOUNDING",
-  YIELD_PARK: "PARKING",
-};
-
-const STATE_COLOR: Record<SwarmState, string> = {
-  IDLE: "text-[#64748b]",
-  STRATEGIST_SCAN: "text-[#FFA30F]",
-  SENTINEL_CHECK: "text-[#3b82f6]",
-  EXECUTOR_DEPLOY: "text-[#FFA30F]",
-  COMPOUNDING: "text-[#10b981]",
-  YIELD_PARK: "text-[#10b981]",
-};
 
 const AGENT_ROLES: Record<AgentName, { role: string; icon: string }> = {
   curator: { role: "Orchestrator", icon: "◈" },
@@ -97,6 +79,24 @@ function mergeCycles(prev: CycleSummary[], incoming: CycleSummary[]): CycleSumma
   return [...prev, ...newOnes].slice(-100);
 }
 
+function mergeTransactions(prev: TransactionRow[], incoming: TransactionRow[]): TransactionRow[] {
+  const keys = new Set(prev.map((tx) => `${tx.txHash}-${tx.cycleId}`));
+  const newOnes = incoming.filter((tx) => !keys.has(`${tx.txHash}-${tx.cycleId}`));
+  return [...prev, ...newOnes].slice(-300);
+}
+
+function formatNextCycle(lastCycleAt: string | null): string {
+  if (!lastCycleAt) return "Pending first cycle";
+  const intervalMs =
+    (Number(process.env.NEXT_PUBLIC_CYCLE_INTERVAL_MINUTES ?? "30") || 30) * 60_000;
+  const next = new Date(new Date(lastCycleAt).getTime() + intervalMs);
+  const remainingMs = next.getTime() - Date.now();
+  if (remainingMs <= 0) return "Due now";
+  const mins = Math.floor(remainingMs / 60_000);
+  const secs = Math.floor((remainingMs % 60_000) / 1000);
+  return `${mins}m ${secs}s`;
+}
+
 // ── Root ──────────────────────────────────────────────────────────────────────
 
 export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Props) {
@@ -115,6 +115,7 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
         status: payload.state,
         positions: { ...prev.positions, openPositions: payload.openPositions },
         cycles: mergeCycles(prev.cycles, payload.recentCycles),
+        transactions: mergeTransactions(prev.transactions, payload.recentTransactions ?? []),
       }));
     });
     es.onerror = () => setLive(false);
@@ -130,12 +131,14 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
     }
   }
 
-  const { status, agents, economy, cycles, positions } = data;
+  const { status, agents, economy, cycles, positions, transactions } = data;
   const lastCycle = cycles.length > 0 ? cycles[cycles.length - 1] : null;
+  const portfolioUsd = agents.reduce((acc, agent) => acc + Number(agent.totalValueUsd ?? "0"), 0);
+  const realizedPnl = Number(economy.realizedPnlUsdc ?? "0");
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
-    { id: "cycles", label: `Cycles · ${cycles.length}` },
+    { id: "transactions", label: `Transactions · ${transactions.length}` },
     { id: "portfolio", label: "Portfolio" },
     { id: "economy", label: "Economy" },
     { id: "leaderboard", label: "Leaderboard" },
@@ -151,15 +154,38 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 pt-10 pb-8">
           {/* Top row */}
           <div className="flex items-start justify-between gap-4 mb-8">
-            <div className="flex items-center gap-3">
-              <div className="size-10 shrink-0">
+            <div className="flex items-start gap-3.5">
+              <div className="size-10 shrink-0 mt-0.5">
                 <Image src="/helios-icon.svg" alt="Helios" width={40} height={40} priority />
               </div>
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-white leading-none">Helios</h1>
-                <p className="text-[11px] font-mono text-[#64748b] mt-0.5 uppercase tracking-widest">
-                  War Room · X Layer
-                </p>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-bold tracking-tight text-white leading-none">
+                    Helios
+                  </h1>
+                  <span className="inline-flex items-center rounded border border-[#1a1c24] bg-[#0A0C10] px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em] text-[#64748b]">
+                    X Layer Mainnet
+                  </span>
+                </div>
+                <div className="mt-0.5 flex items-center gap-2">
+                  <a
+                    href={getOkLinkAddressUrl(
+                      agents.find((agent) => agent.name === "curator")?.address ??
+                        "0x726cf0c4fe559db9a32396161694c7b88c60c947",
+                    )}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] font-mono text-[#64748b] uppercase tracking-widest transition-colors hover:text-[#FFA30F]"
+                  >
+                    {truncateAddress(
+                      agents.find((agent) => agent.name === "curator")?.address ??
+                        "0x726cf0c4fe559db9a32396161694c7b88c60c947",
+                    )}
+                  </a>
+                  <span className="text-[10px] font-mono text-[#4a5568] uppercase tracking-widest">
+                    Curator
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -182,18 +208,6 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
                 {live ? "LIVE" : "OFFLINE"}
               </span>
 
-              {/* State */}
-              <span
-                className={cn(
-                  "text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-1 rounded border",
-                  status.swarmState !== "IDLE"
-                    ? "border-[#FFA30F]/30 text-[#FFA30F] bg-[#FFA30F]/8"
-                    : "border-[#1a1c24] text-[#64748b] bg-transparent",
-                )}
-              >
-                {STATE_LABEL[status.swarmState]}
-              </span>
-
               {/* Run Cycle */}
               <button
                 type="button"
@@ -210,6 +224,10 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
               </button>
             </div>
           </div>
+          <p className="mb-6 max-w-5xl text-sm leading-relaxed text-[#94a3b8]">
+            Four AI agents autonomously earn yield, execute trades, pay each other, and compound
+            capital in a self-sustaining DeFi economy via x402 on X Layer. Capital on autopilot.
+          </p>
 
           {/* Circuit breaker */}
           {status.circuitBreaker.halted && (
@@ -227,24 +245,34 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
           )}
 
           {/* Stats row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-px rounded-lg overflow-hidden border border-[#1a1c24]">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-px rounded-lg overflow-hidden border border-[#1a1c24]">
             <StatCell label="Total Cycles" value={economy.totalCycles.toString()} />
-            <StatCell label="Onchain Txns" value={economy.totalX402Txns.toString()} sub="X Layer" />
+            <StatCell
+              label="Onchain Txns"
+              value={(economy.totalOnchainTxns ?? economy.totalX402Txns).toString()}
+              sub="X Layer"
+            />
             <StatCell label="x402 Paid" value={`$${economy.totalX402PaidUsdc}`} sub="USDG" accent />
+            <StatCell label="Portfolio" value={`$${portfolioUsd.toFixed(2)}`} sub="Total value" />
             <StatCell label="Open Positions" value={positions.openPositions.length.toString()} />
+            <StatCell
+              label="PnL / Return"
+              value={`${realizedPnl >= 0 ? "+" : ""}$${realizedPnl.toFixed(4)}`}
+              sub="realized"
+              positive={realizedPnl > 0}
+              danger={realizedPnl < 0}
+            />
             <StatCell
               label="No-Alpha Streak"
               value={status.consecutiveNoAlpha.toString()}
               sub="consecutive"
             />
             <StatCell
-              label="CB Failures"
-              value={status.circuitBreaker.consecutiveFailures.toString()}
-              danger={status.circuitBreaker.consecutiveFailures > 0}
-            />
-            <StatCell
-              label="Last Cycle"
-              value={status.lastCycleAt ? formatRelativeTime(status.lastCycleAt) : "—"}
+              label="Next Cycle"
+              value={formatNextCycle(status.lastCycleAt)}
+              sub={
+                status.lastCycleAt ? `last ${formatRelativeTime(status.lastCycleAt)}` : undefined
+              }
             />
           </div>
         </div>
@@ -283,17 +311,25 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
             economy={economy}
           />
         )}
-        {tab === "cycles" && <CyclesTab cycles={cycles} />}
+        {tab === "transactions" && <TransactionsTab transactions={transactions} />}
         {tab === "portfolio" && <PortfolioTab positions={positions} />}
-        {tab === "economy" && <EconomyTab economy={economy} />}
+        {tab === "economy" && <EconomyTab economy={economy} agents={agents} />}
         {tab === "leaderboard" && <LeaderboardTab entries={initialLeaderboard} />}
       </main>
 
       {/* ── Footer ────────────────────────────────────────────────────── */}
       <footer className="border-t border-[#1a1c24] py-4 px-6">
         <div className="mx-auto max-w-7xl flex items-center justify-between text-[10px] font-mono text-[#334155]">
-          <span>Helios · X Layer (chainId 196) · OKX BuildX S2</span>
+          <span>Helios · X Layer Mainnet</span>
           <div className="flex items-center gap-4">
+            <a
+              href="https://github.com/helioslabs-ai/helios/tree/main/docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#64748b] transition-colors"
+            >
+              Docs
+            </a>
             <a
               href="https://github.com/helioslabs-ai/helios"
               target="_blank"
@@ -332,23 +368,31 @@ function StatCell({
   value,
   sub,
   accent,
+  positive,
   danger,
 }: {
   label: string;
   value: string;
   sub?: string;
   accent?: boolean;
+  positive?: boolean;
   danger?: boolean;
 }) {
   return (
-    <div className="bg-[#0A0C10] px-4 py-3">
+    <div className="bg-[#0A0C10] px-4 py-4 min-h-[92px] border-r border-[#1a1c24] last:border-r-0">
       <div className="text-[9px] font-mono uppercase tracking-[0.15em] text-[#4a5568] mb-1">
         {label}
       </div>
       <div
         className={cn(
           "text-base font-mono font-bold tabular-nums leading-none",
-          accent ? "text-[#FFA30F]" : danger ? "text-[#ef4444]" : "text-white",
+          accent
+            ? "text-[#FFA30F]"
+            : danger
+              ? "text-[#ef4444]"
+              : positive
+                ? "text-[#10b981]"
+                : "text-white",
         )}
       >
         {value}
@@ -408,9 +452,9 @@ function OverviewTab({
   const agentNames: AgentName[] = ["curator", "strategist", "sentinel", "executor"];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
       {/* Left: Agents + State ─────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 lg:col-span-4">
         <SectionLabel>Agent Swarm</SectionLabel>
         <div className="flex flex-col gap-2">
           {agentNames.map((name) => {
@@ -435,7 +479,7 @@ function OverviewTab({
         {lastCycle && (
           <>
             <SectionLabel>Last Cycle Reasoning</SectionLabel>
-            <Card className="p-4">
+            <Card className="p-5 min-h-[150px]">
               <div className="flex items-center gap-2 mb-2">
                 <span
                   className={cn("size-1.5 rounded-full shrink-0", ACTION_DOT[lastCycle.action])}
@@ -459,7 +503,7 @@ function OverviewTab({
                   </span>
                 )}
               </div>
-              <p className="text-[11px] font-mono text-[#94a3b8] leading-relaxed line-clamp-4">
+              <p className="text-[11px] font-mono text-[#94a3b8] leading-relaxed">
                 {lastCycle.reasoning || "No reasoning recorded."}
               </p>
               {lastCycle.txHashes.length > 0 && (
@@ -483,9 +527,9 @@ function OverviewTab({
       </div>
 
       {/* Center: Cycle feed ───────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 lg:col-span-5">
         <SectionLabel>Cycle Feed · {cycles.length} total</SectionLabel>
-        <Card className="flex-1 overflow-hidden">
+        <Card className="flex-1 overflow-hidden min-h-[340px]">
           <MiniCycleFeed cycles={cycles} />
         </Card>
 
@@ -518,9 +562,9 @@ function OverviewTab({
                       labelFormatter={() => ""}
                     />
                     <Bar dataKey="val" radius={[2, 2, 0, 0]}>
-                      {actionsChart.map((entry, i) => (
+                      {actionsChart.map((entry) => (
                         <Cell
-                          key={i}
+                          key={`${entry.i}-${entry.action}`}
                           fill={
                             entry.action === "buy"
                               ? "#FFA30F"
@@ -555,7 +599,7 @@ function OverviewTab({
       </div>
 
       {/* Right: Positions + Economy ───────────────────────────────────── */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 lg:col-span-3">
         <SectionLabel>Positions</SectionLabel>
         <div className="flex flex-col gap-2">
           {/* Yield position */}
@@ -611,7 +655,7 @@ function AgentRow({
   return (
     <div
       className={cn(
-        "rounded-lg border bg-[#0A0C10] px-4 py-3 flex items-center gap-3 transition-all",
+        "rounded-lg border bg-[#0A0C10] px-4 py-4 min-h-[84px] flex items-center gap-3 transition-all",
         "border-[#1a1c24]",
         glowCls,
       )}
@@ -688,10 +732,10 @@ function MiniCycleFeed({ cycles }: { cycles: CycleSummary[] }) {
           <span className="text-[#334155] w-12 shrink-0 tabular-nums">
             {formatAbsoluteTime(cycle.ts)}
           </span>
-          <span className={cn("w-16 shrink-0 font-semibold uppercase", ACTION_COLOR[cycle.action])}>
-            {cycle.action.replace("_", "·")}
+          <span className={cn("w-20 shrink-0 font-semibold uppercase", ACTION_COLOR[cycle.action])}>
+            {cycle.action === "yield_park" ? "yield_deposit" : cycle.action.replace("_", "·")}
           </span>
-          <span className="text-[#64748b] flex-1 truncate">{cycle.reasoning}</span>
+          <span className="text-[#64748b] flex-1">{cycle.reasoning}</span>
           {cycle.txHashes[0] && (
             <a
               href={getOkLinkTxUrl(cycle.txHashes[0])}
@@ -786,8 +830,8 @@ function EconomyMiniChart({ economy }: { economy: DashboardData["economy"] }) {
                   strokeWidth={0}
                   paddingAngle={2}
                 >
-                  {data.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
+                  {data.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip
@@ -831,45 +875,49 @@ function EconomyMiniChart({ economy }: { economy: DashboardData["economy"] }) {
 // CYCLES TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function CyclesTab({ cycles }: { cycles: CycleSummary[] }) {
-  const sorted = [...cycles].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+function TransactionsTab({ transactions }: { transactions: TransactionRow[] }) {
+  const sorted = [...transactions].sort(
+    (a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime(),
+  );
 
   return (
     <div>
       <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#4a5568] font-semibold mb-4">
-        Cycle History — {cycles.length} total
+        Transaction History — {transactions.length} total
       </div>
 
-      {sorted.length === 0 ? (
+      {transactions.length === 0 ? (
         <Card className="px-6 py-12 text-center text-[11px] font-mono text-[#334155]">
-          No cycles yet. Trigger one to begin.
+          No transactions yet. Trigger one cycle to begin.
         </Card>
       ) : (
         <div className="rounded-lg border border-[#1a1c24] overflow-hidden">
           <table className="w-full text-xs font-mono">
             <thead>
               <tr className="border-b border-[#1a1c24] bg-[#0A0C10]">
-                {["Time", "Action", "Sentinel", "Reasoning", "Tx Hashes", "Cycle ID"].map((h) => (
-                  <th
-                    key={h}
-                    className="px-4 py-2.5 text-left text-[9px] uppercase tracking-[0.15em] text-[#4a5568] font-normal"
-                  >
-                    {h}
-                  </th>
-                ))}
+                {["Time", "Type", "Agent", "Context", "Reasoning", "Tx Hash", "Cycle ID"].map(
+                  (h) => (
+                    <th
+                      key={h}
+                      className="px-4 py-2.5 text-left text-[9px] uppercase tracking-[0.15em] text-[#4a5568] font-normal"
+                    >
+                      {h}
+                    </th>
+                  ),
+                )}
               </tr>
             </thead>
             <tbody>
-              {sorted.map((cycle, idx) => (
+              {sorted.map((tx, idx) => (
                 <tr
-                  key={cycle.id}
+                  key={`${tx.txHash}-${tx.cycleId}`}
                   className={cn(
                     "border-b border-[#1a1c24]/60 hover:bg-[#13151C] transition-colors",
                     idx === 0 && "animate-fade-up",
                   )}
                 >
                   <td className="px-4 py-2.5 text-[#64748b] tabular-nums whitespace-nowrap">
-                    {new Date(cycle.ts).toLocaleString("en-US", {
+                    {new Date(tx.ts).toLocaleString("en-US", {
                       month: "short",
                       day: "numeric",
                       hour: "2-digit",
@@ -878,50 +926,26 @@ function CyclesTab({ cycles }: { cycles: CycleSummary[] }) {
                     })}
                   </td>
                   <td className="px-4 py-2.5">
-                    <span className={cn("font-semibold uppercase", ACTION_COLOR[cycle.action])}>
-                      {cycle.action.replace("_", " ")}
+                    <span className={cn("font-semibold uppercase", ACTION_COLOR[tx.action])}>
+                      {tx.kind.replace("_", " ")}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5">
-                    {cycle.sentinelVerdict ? (
-                      <span
-                        className={cn(
-                          "text-[9px] font-bold uppercase tracking-widest",
-                          cycle.sentinelVerdict === "CLEAR" ? "text-[#10b981]" : "text-[#ef4444]",
-                        )}
-                      >
-                        {cycle.sentinelVerdict}
-                      </span>
-                    ) : (
-                      <span className="text-[#334155]">—</span>
-                    )}
-                  </td>
-                  <td
-                    className="px-4 py-2.5 text-[#64748b] max-w-xs truncate"
-                    title={cycle.reasoning}
-                  >
-                    {cycle.reasoning || "—"}
+                  <td className="px-4 py-2.5 text-[#94a3b8] capitalize">{tx.agent}</td>
+                  <td className="px-4 py-2.5 text-[#64748b] max-w-xs">{tx.context}</td>
+                  <td className="px-4 py-2.5 text-[#64748b] max-w-xs" title={tx.reasoning}>
+                    {tx.reasoning}
                   </td>
                   <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {cycle.txHashes.length > 0 ? (
-                        cycle.txHashes.map((hash) => (
-                          <a
-                            key={hash}
-                            href={getOkLinkTxUrl(hash)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[#3b82f6] hover:text-[#FFA30F] transition-colors"
-                          >
-                            {hash.slice(0, 8)}…
-                          </a>
-                        ))
-                      ) : (
-                        <span className="text-[#334155]">—</span>
-                      )}
-                    </div>
+                    <a
+                      href={getOkLinkTxUrl(tx.txHash)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#3b82f6] hover:text-[#FFA30F] transition-colors"
+                    >
+                      {tx.txHash.slice(0, 8)}…
+                    </a>
                   </td>
-                  <td className="px-4 py-2.5 text-[#334155]">{cycle.id.slice(0, 8)}…</td>
+                  <td className="px-4 py-2.5 text-[#334155]">{tx.cycleId.slice(0, 8)}…</td>
                 </tr>
               ))}
             </tbody>
@@ -1117,11 +1141,17 @@ function PortfolioTab({ positions }: { positions: DashboardData["positions"] }) 
 // ECONOMY TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function EconomyTab({ economy }: { economy: DashboardData["economy"] }) {
-  const agents: AgentName[] = ["strategist", "sentinel", "executor", "curator"];
+function EconomyTab({
+  economy,
+  agents: walletAgents,
+}: {
+  economy: DashboardData["economy"];
+  agents: DashboardData["agents"];
+}) {
+  const payoutAgents: AgentName[] = ["strategist", "sentinel", "executor", "curator"];
   const colors = ["#FFA30F", "#3b82f6", "#10b981", "#64748b"];
 
-  const barData = agents.map((a, i) => ({
+  const barData = payoutAgents.map((a, i) => ({
     name: a,
     earned: Number.parseFloat(economy.perAgent[a] ?? "0"),
     color: colors[i],
@@ -1169,8 +1199,8 @@ function EconomyTab({ economy }: { economy: DashboardData["economy"] }) {
                   formatter={(v: unknown) => [`$${(v as number).toFixed(6)} USDG`, "Earned"]}
                 />
                 <Bar dataKey="earned" radius={[3, 3, 0, 0]}>
-                  {barData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
+                  {barData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
                   ))}
                 </Bar>
               </BarChart>
@@ -1183,12 +1213,12 @@ function EconomyTab({ economy }: { economy: DashboardData["economy"] }) {
       <div>
         <SectionLabel>Agent x402 Breakdown</SectionLabel>
         <div className="rounded-lg border border-[#1a1c24] overflow-hidden">
-          {agents.map((agent, i) => (
+          {payoutAgents.map((agent, i) => (
             <div
               key={agent}
               className={cn(
                 "flex items-center justify-between px-5 py-3.5 hover:bg-[#13151C] transition-colors",
-                i < agents.length - 1 && "border-b border-[#1a1c24]/60",
+                i < payoutAgents.length - 1 && "border-b border-[#1a1c24]/60",
               )}
             >
               <div className="flex items-center gap-3">
@@ -1200,6 +1230,26 @@ function EconomyTab({ economy }: { economy: DashboardData["economy"] }) {
               </div>
               <span className="text-base font-mono font-bold text-[#FFA30F] tabular-nums">
                 ${economy.perAgent[agent] ?? "0.0000"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <SectionLabel>Agent Wallet Balances (USD)</SectionLabel>
+        <div className="rounded-lg border border-[#1a1c24] overflow-hidden">
+          {walletAgents.map((agent, index) => (
+            <div
+              key={agent.name}
+              className={cn(
+                "flex items-center justify-between px-5 py-3.5 hover:bg-[#13151C] transition-colors",
+                index < walletAgents.length - 1 && "border-b border-[#1a1c24]/60",
+              )}
+            >
+              <span className="text-sm font-mono capitalize text-white">{agent.name}</span>
+              <span className="text-base font-mono font-bold text-[#10b981] tabular-nums">
+                ${Number(agent.totalValueUsd ?? "0").toFixed(2)}
               </span>
             </div>
           ))}

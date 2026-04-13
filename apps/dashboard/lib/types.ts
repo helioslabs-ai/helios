@@ -32,13 +32,16 @@ export interface AgentInfo {
   name: AgentName;
   address: string;
   accountId: string;
+  totalValueUsd?: string;
 }
 
 export interface EconomyData {
   totalCycles: number;
   totalX402PaidUsdc: string;
+  totalOnchainTxns?: number;
   totalX402Txns: number;
   perAgent: Record<AgentName, string>;
+  realizedPnlUsdc?: string;
 }
 
 export interface Position {
@@ -74,6 +77,24 @@ export interface CycleSummary {
   reasoning: string;
   txHashes: string[];
   sentinelVerdict?: SentinelVerdict;
+  transactions?: Array<{
+    txHash: string;
+    kind: "x402_payment" | "trade" | "yield_deposit" | "trade_exit";
+    agent: AgentName;
+    context: string;
+    serviceUrl?: string;
+  }>;
+}
+
+export interface TransactionRow {
+  txHash: string;
+  ts: string;
+  cycleId: string;
+  action: CycleAction;
+  kind: "x402_payment" | "trade" | "yield_deposit" | "trade_exit";
+  agent: AgentName;
+  context: string;
+  reasoning: string;
 }
 
 export interface LogsData {
@@ -84,6 +105,7 @@ export interface LogsData {
 export interface SsePayload {
   state: SwarmStatus;
   recentCycles: CycleSummary[];
+  recentTransactions: TransactionRow[];
   openPositions: Position[];
 }
 
@@ -92,6 +114,7 @@ export interface DashboardData {
   agents: AgentInfo[];
   economy: EconomyData;
   cycles: CycleSummary[];
+  transactions: TransactionRow[];
   positions: PositionsData;
 }
 

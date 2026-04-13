@@ -1,7 +1,6 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { GUARDRAILS, maxTradeSize } from "@helios/shared/guardrails";
-import { settleX402 } from "../wallet/index.js";
 import { getDb } from "../db/client.js";
 import { cycles, economyEntries } from "../db/schema/index.js";
 import { buildCycleContext } from "../memory/index.js";
@@ -18,7 +17,7 @@ import {
   tripCircuitBreaker,
 } from "../state.js";
 import type { AgentConfig, AgentName, CycleSummary, Position } from "../types.js";
-import { getAllBalances } from "../wallet/index.js";
+import { getAllBalances, settleX402 } from "../wallet/index.js";
 import { exitPosition } from "./executor.js";
 import { reScorePositions } from "./sentinel.js";
 
@@ -40,6 +39,16 @@ type EconomyLogEntry = {
   serviceUrl: string;
   isNoAlpha: boolean;
 };
+
+type CycleTxKind = "x402_payment" | "trade" | "yield_deposit" | "trade_exit";
+
+interface CycleTxEvent {
+  txHash: string;
+  kind: CycleTxKind;
+  agent: AgentName;
+  context: string;
+  serviceUrl?: string;
+}
 
 function appendEconomyLog(entry: EconomyLogEntry): void {
   appendFileSync(join(DATA_DIR, "economy_log.jsonl"), `${JSON.stringify(entry)}\n`);
@@ -94,6 +103,7 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
   const cycleContext = buildCycleContext(balances);
 
   const txHashes: string[] = [];
+  const transactions: CycleTxEvent[] = [];
 
   // Phase 1: Exit management — re-score open positions directly (not x402 gated)
   setState("STRATEGIST_SCAN");
@@ -103,7 +113,15 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
       const position = cycleContext.openPositions.find((p) => p.token === exit.token);
       if (position) {
         const result = await exitPosition(configs.executor, position, exit.reasoning, cycleContext);
-        if (result.txHash) txHashes.push(result.txHash);
+        if (result.txHash) {
+          txHashes.push(result.txHash);
+          transactions.push({
+            txHash: result.txHash,
+            kind: "trade_exit",
+            agent: "executor",
+            context: `Exited ${position.token} after sentinel re-score BLOCK`,
+          });
+        }
       }
     }
   }
@@ -125,6 +143,16 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
     serviceUrl: "/agents/strategist/scan",
     isNoAlpha: false,
   });
+  if (scanResult.txHash) {
+    txHashes.push(scanResult.txHash);
+    transactions.push({
+      txHash: scanResult.txHash,
+      kind: "x402_payment",
+      agent: "strategist",
+      context: "Curator paid strategist for scan",
+      serviceUrl: "/agents/strategist/scan",
+    });
+  }
 
   const scan = scanResult.body as {
     topToken?: string | null;
@@ -155,6 +183,16 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
       serviceUrl: "/agents/sentinel/assess",
       isNoAlpha: false,
     });
+    if (assessResult.txHash) {
+      txHashes.push(assessResult.txHash);
+      transactions.push({
+        txHash: assessResult.txHash,
+        kind: "x402_payment",
+        agent: "sentinel",
+        context: "Curator paid sentinel for risk assessment",
+        serviceUrl: "/agents/sentinel/assess",
+      });
+    }
 
     const assessment = assessResult.body as { verdict?: string; reasoning?: string };
 
@@ -183,6 +221,16 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
         serviceUrl: "/agents/executor/deploy",
         isNoAlpha: false,
       });
+      if (deployResult.txHash) {
+        txHashes.push(deployResult.txHash);
+        transactions.push({
+          txHash: deployResult.txHash,
+          kind: "x402_payment",
+          agent: "executor",
+          context: "Curator paid executor for deployment",
+          serviceUrl: "/agents/executor/deploy",
+        });
+      }
 
       const deploy = deployResult.body as {
         txHash?: string | null;
@@ -192,6 +240,12 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
       };
       if (deploy.txHash) {
         txHashes.push(deploy.txHash);
+        transactions.push({
+          txHash: deploy.txHash,
+          kind: "trade",
+          agent: "executor",
+          context: `Executor bought ${deploy.token ?? scan.topToken ?? "asset"}`,
+        });
         // A2: write open position to positions.json
         writePosition({
           token: deploy.token ?? scan.topToken ?? "unknown",
@@ -233,10 +287,26 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
       serviceUrl: "/agents/executor/deploy",
       isNoAlpha: true,
     });
+    if (parkResult.txHash) {
+      txHashes.push(parkResult.txHash);
+      transactions.push({
+        txHash: parkResult.txHash,
+        kind: "x402_payment",
+        agent: "executor",
+        context: "Curator paid executor for yield deposit",
+        serviceUrl: "/agents/executor/deploy",
+      });
+    }
 
     const park = parkResult.body as { txHash?: string | null; sizeUsdc?: string };
     if (park.txHash) {
       txHashes.push(park.txHash);
+      transactions.push({
+        txHash: park.txHash,
+        kind: "yield_deposit",
+        agent: "executor",
+        context: "Executor deposited idle USDC to Aave V3",
+      });
       // A7: write yield position to yield.json
       const yieldAmountUsdc = park.sizeUsdc ?? cycleContext.walletBalances.executor ?? "0";
       writeFileSync(
@@ -262,7 +332,7 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
   // A3: reset consecutive failures on clean cycle
   resetConsecutiveFailures();
 
-  const summary: CycleSummary = { id: cycleId, ts, action, reasoning, txHashes };
+  const summary: CycleSummary = { id: cycleId, ts, action, reasoning, txHashes, transactions };
   appendFileSync(join(DATA_DIR, "cycle_log.jsonl"), `${JSON.stringify(summary)}\n`);
 
   const db = getDb();
@@ -310,7 +380,7 @@ function checkSessionLoss(): void {
   const positions = readPositions();
   const pnlUsdc = positions
     .filter((p) => p.status === "closed" && p.pnlPct !== undefined)
-    .reduce((acc, p) => acc + (p.pnlPct! / 100) * Number.parseFloat(p.sizeUsdc), 0);
+    .reduce((acc, p) => acc + ((p.pnlPct ?? 0) / 100) * Number.parseFloat(p.sizeUsdc), 0);
   if (pnlUsdc < -GUARDRAILS.MAX_SESSION_LOSS_USD) {
     haltSwarm(
       `Session loss $${pnlUsdc.toFixed(2)} exceeded limit $${GUARDRAILS.MAX_SESSION_LOSS_USD}`,
@@ -333,7 +403,7 @@ async function postRegistryStats(configs: AgentConfigs): Promise<void> {
   const tradeCount = cycleLogs.filter((c) => c.action === "buy").length;
   const pnlUsdc = positions
     .filter((p) => p.status === "closed" && p.pnlPct !== undefined)
-    .reduce((acc, p) => acc + (p.pnlPct! / 100) * Number.parseFloat(p.sizeUsdc), 0);
+    .reduce((acc, p) => acc + ((p.pnlPct ?? 0) / 100) * Number.parseFloat(p.sizeUsdc), 0);
   const returnPct = (pnlUsdc / 10.0) * 100;
   const status = state.circuitBreaker.halted ? "halted" : "active";
 

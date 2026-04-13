@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>A sovereign, self-sustaining multi-agent DeFi economy — where capital never stops working.</strong><br/>
-  Four AI agents — each with its own OKX TEE Agentic Wallet and onchain identity — continuously find yield, execute trades, monitor risk, and compound profits, coordinating via x402 micropayments. No human in the loop. Every cycle is proven onchain.
+  Four specialized AI agents — each with its own OKX TEE Agentic Wallet and onchain identity — autonomously find yield, execute trades, manage risk, and compound capital, coordinating via x402 USDG micropayments. No human in the loop. Every cycle is proven onchain.
 </p>
 
 <p align="center">
@@ -211,8 +211,8 @@ Four independent OKX TEE Agentic Wallets — each agent has its own sovereign on
 
 **Primary wallet (Curator):** [`0x726cf0c4fe559db9a32396161694c7b88c60c947`](https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947) — orchestrates every cycle, settles all x402 agent fees, and registers the swarm on the leaderboard.
 
-| Agent      | Role                                      | Address                                                                                                                        | Registration Tx |
-| ---------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------- |
+| Agent      | Role                                      | Address                                                                                                                        | Registration Tx                                                                                                        |
+| ---------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | Curator    | Orchestrator — cycles, payments, registry | [0x726cf0c4fe559db9a32396161694c7b88c60c947](https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947) | [0x2da165...8748](https://www.oklink.com/xlayer/tx/0x2da165488f92f48167e443b7208f5949d049476bb54554893aa78dbb24e98748) |
 | Strategist | Alpha scanner — paid per scan via x402    | [0x3c69ed447ccd8d515e73dd81e6a0f56edd7623ed](https://www.oklink.com/xlayer/address/0x3c69ed447ccd8d515e73dd81e6a0f56edd7623ed) | [0x873446...7e5d](https://www.oklink.com/xlayer/tx/0x8734468148b51b117857c7bb55cca35f9224c813a9cb787aad4429fa0a297e5d) |
 | Sentinel   | Risk gate — paid per assessment via x402  | [0x95923bc7280cc182559f2bc7b368c09448726d4f](https://www.oklink.com/xlayer/address/0x95923bc7280cc182559f2bc7b368c09448726d4f) | [0x85006e...7330](https://www.oklink.com/xlayer/tx/0x85006e74557d47809b373e56032575248841f02492ef1bf02015fd5eb6537330) |
@@ -321,7 +321,7 @@ curl https://api.heliosfi.xyz/api/sse          # live SSE stream
 | Wallets           | OKX TEE Agentic Wallet × 4 per swarm                    |
 | Payments          | OKX x402 (`/x402/verify` + `/x402/settle`)              |
 | Onchain execution | OKX OnchainOS skills (14/14) + Uniswap AI skills        |
-| AI                | OpenAI gpt-4o-mini via Vercel AI SDK                         |
+| AI                | OpenAI gpt-4o-mini via Vercel AI SDK                    |
 | Database          | Supabase + Drizzle ORM                                  |
 | Blockchain        | X Layer (chainId 196), viem                             |
 | CLI               | Custom Bun CLI — setup, seed, start, stop, status, logs |

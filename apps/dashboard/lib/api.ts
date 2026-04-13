@@ -6,6 +6,7 @@ import type {
   LogsData,
   PositionsData,
   SwarmStatus,
+  TransactionRow,
 } from "./types";
 
 const SERVER_API = process.env.API_URL ?? "http://localhost:3001";
@@ -47,8 +48,10 @@ const DEFAULT_STATUS: SwarmStatus = {
 const DEFAULT_ECONOMY: EconomyData = {
   totalCycles: 0,
   totalX402PaidUsdc: "0.0000",
+  totalOnchainTxns: 0,
   totalX402Txns: 0,
   perAgent: { curator: "0", strategist: "0", sentinel: "0", executor: "0" },
+  realizedPnlUsdc: "0.0000",
 };
 
 const DEFAULT_POSITIONS: PositionsData = {
@@ -58,11 +61,15 @@ const DEFAULT_POSITIONS: PositionsData = {
 };
 
 export async function fetchDashboardData(): Promise<DashboardData> {
-  const [status, agentsData, economy, logsData, positions] = await Promise.all([
+  const [status, agentsData, economy, logsData, txData, positions] = await Promise.all([
     fetchJson<SwarmStatus>("/api/status", DEFAULT_STATUS),
     fetchJson<{ agents: AgentInfo[] }>("/api/agents", { agents: [] }),
     fetchJson<EconomyData>("/api/economy", DEFAULT_ECONOMY),
     fetchJson<LogsData>("/api/logs?n=50", { cycles: [], count: 0 }),
+    fetchJson<{ transactions: TransactionRow[]; count: number }>("/api/transactions", {
+      transactions: [],
+      count: 0,
+    }),
     fetchJson<PositionsData>("/api/positions", DEFAULT_POSITIONS),
   ]);
 
@@ -71,6 +78,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     agents: agentsData.agents,
     economy,
     cycles: logsData.cycles,
+    transactions: txData.transactions,
     positions,
   };
 }

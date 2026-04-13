@@ -18,7 +18,7 @@ const ACTION_DOT: Record<CycleAction, string> = {
 
 const ACTION_LABEL: Record<CycleAction, string> = {
   buy: "BUY",
-  yield_park: "YIELD_PARK",
+  yield_park: "YIELD_DEPOSIT",
   no_alpha: "NO_ALPHA",
   hold: "HOLD",
 };

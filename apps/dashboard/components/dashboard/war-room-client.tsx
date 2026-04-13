@@ -24,7 +24,7 @@ const STATE_LABEL: Record<SwarmState, string> = {
   SENTINEL_CHECK: "ASSESSING",
   EXECUTOR_DEPLOY: "DEPLOYING",
   COMPOUNDING: "COMPOUNDING",
-  YIELD_PARK: "PARKING",
+  YIELD_PARK: "DEPOSITING",
 };
 
 export function WarRoomClient({ initial }: Props) {

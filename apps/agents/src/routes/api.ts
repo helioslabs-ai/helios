@@ -15,6 +15,7 @@ import {
   resetCircuitBreaker,
   tripCircuitBreaker,
 } from "../state.js";
+import { okxFetch } from "../tools/okx-client.js";
 import type { AgentName, CycleSummary, EconomyEntry, Position } from "../types.js";
 
 const DATA_DIR = join(import.meta.dir, "../data");
@@ -40,6 +41,37 @@ function readJson<T>(filename: string, fallback: T): T {
 
 const api = new Hono();
 
+interface AgentBalanceRow {
+  totalValue?: string;
+}
+
+interface AgentTxRow {
+  txHash: string;
+  ts: string;
+  cycleId: string;
+  action: string;
+  kind: string;
+  agent: AgentName;
+  context: string;
+  reasoning: string;
+}
+
+async function getWalletUsdValue(address: string): Promise<string> {
+  if (!address) return "0";
+  try {
+    const json = await okxFetch<{ data?: AgentBalanceRow[] }>(
+      "/api/v6/dex/balance/total-value-by-address",
+      {
+        params: { address, chains: "196" },
+      },
+    );
+    const first = json.data?.[0];
+    return first?.totalValue ?? "0";
+  } catch {
+    return "0";
+  }
+}
+
 api.get("/status", (c) => {
   const state = getState();
   return c.json(state);
@@ -47,6 +79,7 @@ api.get("/status", (c) => {
 
 api.get("/economy", (c) => {
   const entries = readJsonl<EconomyEntry>("economy_log.jsonl");
+  const cycles = readJsonl<CycleSummary>("cycle_log.jsonl");
   const totalX402PaidUsdc = entries
     .reduce((acc, e) => acc + Number.parseFloat(e.amount ?? "0"), 0)
     .toFixed(4);
@@ -62,11 +95,28 @@ api.get("/economy", (c) => {
     perAgent[entry.to] = (prev + Number.parseFloat(entry.amount ?? "0")).toFixed(4);
   }
 
+  const uniqueTxHashes = new Set<string>();
+  for (const entry of entries) {
+    if (entry.txHash) uniqueTxHashes.add(entry.txHash);
+  }
+  for (const cycle of cycles) {
+    for (const hash of cycle.txHashes) uniqueTxHashes.add(hash);
+    for (const tx of cycle.transactions ?? []) uniqueTxHashes.add(tx.txHash);
+  }
+
+  const positions = readJson<Position[]>("positions.json", []);
+  const realizedPnlUsdc = positions
+    .filter((p) => p.status === "closed" && p.pnlPct !== undefined)
+    .reduce((acc, p) => acc + (Number(p.sizeUsdc) * (p.pnlPct ?? 0)) / 100, 0)
+    .toFixed(4);
+
   return c.json({
     totalCycles: getState().totalCycles,
     totalX402PaidUsdc,
+    totalOnchainTxns: uniqueTxHashes.size,
     totalX402Txns: entries.filter((e) => e.txHash).length,
     perAgent,
+    realizedPnlUsdc,
   });
 });
 
@@ -86,14 +136,60 @@ api.get("/logs", (c) => {
   return c.json({ cycles: cycles.slice(-n), count: cycles.length });
 });
 
-api.get("/agents", (c) => {
+api.get("/agents", async (c) => {
   const agentNames: AgentName[] = ["curator", "strategist", "sentinel", "executor"];
-  const agents = agentNames.map((name) => ({
-    name,
-    address: process.env[`${name.toUpperCase()}_WALLET_ADDRESS`] ?? "",
-    accountId: process.env[`${name.toUpperCase()}_ACCOUNT_ID`] ?? "",
-  }));
+  const agents = await Promise.all(
+    agentNames.map(async (name) => {
+      const address = process.env[`${name.toUpperCase()}_WALLET_ADDRESS`] ?? "";
+      const totalValueUsd = await getWalletUsdValue(address);
+      return {
+        name,
+        address,
+        accountId: process.env[`${name.toUpperCase()}_ACCOUNT_ID`] ?? "",
+        totalValueUsd,
+      };
+    }),
+  );
   return c.json({ agents });
+});
+
+api.get("/transactions", (c) => {
+  const cycles = readJsonl<CycleSummary>("cycle_log.jsonl");
+  const txRows: AgentTxRow[] = [];
+
+  for (const cycle of cycles) {
+    const seen = new Set<string>();
+    for (const tx of cycle.transactions ?? []) {
+      txRows.push({
+        txHash: tx.txHash,
+        ts: cycle.ts,
+        cycleId: cycle.id,
+        action: cycle.action,
+        kind: tx.kind,
+        agent: tx.agent,
+        context: tx.context,
+        reasoning: cycle.reasoning,
+      });
+      seen.add(tx.txHash);
+    }
+
+    for (const txHash of cycle.txHashes) {
+      if (seen.has(txHash)) continue;
+      txRows.push({
+        txHash,
+        ts: cycle.ts,
+        cycleId: cycle.id,
+        action: cycle.action,
+        kind: "trade",
+        agent: "executor",
+        context: "Execution transaction recorded in cycle summary",
+        reasoning: cycle.reasoning,
+      });
+    }
+  }
+
+  txRows.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+  return c.json({ transactions: txRows, count: txRows.length });
 });
 
 api.post("/cycle", async (c) => {
@@ -202,11 +298,35 @@ api.get("/sse", (c) => {
     while (true) {
       const state = getState();
       const cycles = readJsonl<CycleSummary>("cycle_log.jsonl").slice(-5);
+      const recentTransactions = readJsonl<CycleSummary>("cycle_log.jsonl")
+        .slice(-20)
+        .flatMap((cycle) =>
+          (
+            cycle.transactions ??
+            cycle.txHashes.map((txHash) => ({
+              txHash,
+              kind: "trade",
+              agent: "executor",
+              context: "Execution transaction recorded in cycle summary",
+            }))
+          ).map((tx) => ({
+            txHash: tx.txHash,
+            ts: cycle.ts,
+            cycleId: cycle.id,
+            action: cycle.action,
+            kind: tx.kind,
+            agent: tx.agent,
+            context: tx.context,
+            reasoning: cycle.reasoning,
+          })),
+        )
+        .slice(-30);
       const positions = readJson<Position[]>("positions.json", []);
       await stream.writeSSE({
         data: JSON.stringify({
           state,
           recentCycles: cycles,
+          recentTransactions,
           openPositions: positions.filter((p) => p.status === "open"),
         }),
         event: "state",
