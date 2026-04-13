@@ -27,6 +27,7 @@ interface VerifyResponse {
   accountName: string;
   isNew: boolean;
   teeId: string;
+  addressList?: Array<{ address: string; chainIndex: string; chainName: string }>;
 }
 
 interface WalletSession {
@@ -168,6 +169,17 @@ export async function akLogin(accountId: string): Promise<WalletSession> {
   };
 
   sessionCache.set(accountId, session);
+
+  // Diagnostic: log which addresses OKX associates with this accountId
+  if (verifyResp.addressList?.length) {
+    const addrs = verifyResp.addressList
+      .filter((a) => a.chainIndex === "196" || a.chainName?.toLowerCase().includes("x layer"))
+      .map((a) => a.address);
+    console.log(`[akLogin] accountId=${accountId} → X Layer addresses: ${JSON.stringify(addrs)}`);
+  } else {
+    console.log(`[akLogin] accountId=${accountId} → no addressList returned`);
+  }
+
   return session;
 }
 
@@ -363,7 +375,8 @@ async function signX402(
   const nonce = `0x${crypto.randomBytes(32).toString("hex")}`;
 
   const baseFields = {
-    chainIndex: XLAYER_CHAIN_INDEX,
+    accountId,
+    chainIndex: Number(XLAYER_CHAIN_INDEX),
     from: payerAddress,
     to: requirement.payTo,
     value: requirement.amount,
@@ -402,8 +415,14 @@ async function signX402(
 
   // Step 2: HPKE decrypt → Ed25519 seed → sign msgHash locally
   const seed = await hpkeDecryptSessionSk(session.encryptedSessionSk, session.sessionPrivateKey);
+  if (seed.length !== 32) throw new Error(`HPKE: seed must be 32 bytes, got ${seed.length}`);
+
   const msgHashBytes = Buffer.from(msgHash.replace(/^0x/, ""), "hex");
   const sessionSignature = Buffer.from(ed25519Sign(seed, msgHashBytes)).toString("base64");
+
+  console.log(`[x402:sign] payer=${payerAddress} accountId=${accountId}`);
+  console.log(`[x402:sign] msgHash=${msgHash.slice(0, 18)} domainHash=${domainHash.slice(0, 18)}`);
+  console.log(`[x402:sign] seed[0]=${seed[0]} sessionSig=${sessionSignature.slice(0, 12)}...`);
 
   // Step 3: TEE produces final EIP-3009 secp256k1 signature
   const signRes = await fetch(`${TEE_BASE}${WALLET_PREFIX}/pre-transaction/sign-msg`, {
@@ -426,6 +445,7 @@ async function signX402(
     throw new Error(`sign-msg failed [${signJson.code}]: ${signJson.msg}`);
   }
 
+  console.log(`[x402:sign] sign-msg raw: ${JSON.stringify(signJson)}`);
   const sig = signJson.data?.[0]?.signature;
   if (!sig) {
     throw new Error(`sign-msg returned no signature. Raw response: ${JSON.stringify(signJson)}`);
