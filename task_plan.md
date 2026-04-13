@@ -140,8 +140,8 @@
       `HELIOS_API_URL` takes precedence. Required for CLI to target the live remote instance.
 
 - [x] **C3 — Fix `start` command model hardcode**
-      `model: "gpt-4o"` is hardcoded in `start.ts` sent to leaderboard registry.
-      Read from env: check `OPENAI_API_KEY` presence, use `"gpt-4o"` as default but allow override via `SWARM_MODEL` env var.
+      `model: "gpt-4o-mini"` is hardcoded in `start.ts` sent to leaderboard registry.
+      Read from env: check `OPENAI_API_KEY` presence, use `"gpt-4o-mini"` as default but allow override via `SWARM_MODEL` env var.
 
 - [x] **C4 — Update SKILL.md**
       Current SKILL.md is missing `start`, `stop`, `strategy`, `guardrails`, `seed` in the CLI table.
@@ -199,7 +199,7 @@
 
 ### Manual tasks (you)
 
-- [ ] **P4 — Fund wallets + start agents** — `helios start` on live Render instance with real capital
+- [x] **P4 — Fund wallets + start agents** — `helios start` on live Render instance with real capital
 - [ ] **P5 — Accumulate 1000+ onchain txns** — automated once agents are running (target before Apr 15)
 - [ ] **P6 — Moltbook Agent Track**
       - Register Helios agent on Moltbook

@@ -69,7 +69,7 @@ executorRoutes.post("/deploy", async (c) => {
         address: EXECUTOR_WALLET as `0x${string}`,
       },
       tools: executorTools,
-      llm: { model: "gpt-4o", apiKey: process.env.OPENAI_API_KEY ?? "" },
+      llm: { model: "gpt-4o-mini", apiKey: process.env.OPENAI_API_KEY ?? "" },
       prompts: {
         strategy: EXECUTOR_SYSTEM_PROMPT,
         budget: buildExecutorBudget({

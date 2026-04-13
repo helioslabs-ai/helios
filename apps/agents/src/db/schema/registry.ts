@@ -3,7 +3,7 @@ import { boolean, integer, numeric, pgTable, text, timestamp, uuid } from "drizz
 export const heliosRegistry = pgTable("helios_registry", {
   id: uuid("id").primaryKey().defaultRandom(),
   swarmName: text("swarm_name").notNull(),
-  model: text("model").notNull().default("gpt-4o"),
+  model: text("model").notNull().default("gpt-4o-mini"),
   curatorAddress: text("curator_address").unique().notNull(),
   returnPct: numeric("return_pct").default("0").notNull(),
   pnlUsdc: numeric("pnl_usdc").default("0").notNull(),

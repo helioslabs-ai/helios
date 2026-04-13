@@ -60,7 +60,7 @@ strategistRoutes.get("/scan", async (c) => {
         address: STRATEGIST_WALLET as `0x${string}`,
       },
       tools: strategistTools,
-      llm: { model: "gpt-4o", apiKey: process.env.OPENAI_API_KEY ?? "" },
+      llm: { model: "gpt-4o-mini", apiKey: process.env.OPENAI_API_KEY ?? "" },
       prompts: {
         strategy: buildStrategyPrompt(),
         budget: buildStrategistBudget({

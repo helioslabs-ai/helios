@@ -63,7 +63,7 @@ sentinelRoutes.get("/assess", async (c) => {
         address: SENTINEL_WALLET as `0x${string}`,
       },
       tools: sentinelTools,
-      llm: { model: "gpt-4o", apiKey: process.env.OPENAI_API_KEY ?? "" },
+      llm: { model: "gpt-4o-mini", apiKey: process.env.OPENAI_API_KEY ?? "" },
       prompts: { strategy: SENTINEL_SYSTEM_PROMPT, budget: "" },
     },
     token,

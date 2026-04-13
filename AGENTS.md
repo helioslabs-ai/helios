@@ -13,16 +13,16 @@
 
 | Contract           | Address                                      | Network       | Explorer                                                                                     |
 | ------------------ | -------------------------------------------- | ------------- | -------------------------------------------------------------------------------------------- |
-| HeliosRegistry.sol | `0x5b5F83A465EF625B7d2E6a26c848517fD31D0bb3` | X Layer (196) | [OKLink ↗](https://www.oklink.com/xlayer/address/0x5b5F83A465EF625B7d2E6a26c848517fD31D0bb3) |
+| HeliosRegistry.sol | `0xbA74426e9144bf68f986ec239E32a882843487E7` | X Layer (196) | [OKLink ↗](https://www.oklink.com/xlayer/address/0xbA74426e9144bf68f986ec239E32a882843487E7) |
 
-**Primary swarm wallet (Executor):** `0x258e3035242a05b53ca82c5dffeaeadee2af0d2c` — [OKLink ↗](https://www.oklink.com/xlayer/address/0x258e3035242a05b53ca82c5dffeaeadee2af0d2c) — all trades and DeFi deposits execute here. Check for live onchain activity.
+**Primary wallet (Curator):** `0x726cf0c4fe559db9a32396161694c7b88c60c947` — [OKLink ↗](https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947) — orchestrates every cycle, settles all x402 agent fees, registers the swarm on the leaderboard.
 
-| Agent      | Address                                      | Explorer                                                                                     |
-| ---------- | -------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Executor   | `0x258e3035242a05b53ca82c5dffeaeadee2af0d2c` | [OKLink ↗](https://www.oklink.com/xlayer/address/0x258e3035242a05b53ca82c5dffeaeadee2af0d2c) |
-| Curator    | `0x075a7b84336ed268df32a76f2a2c7c119ba5480c` | [OKLink ↗](https://www.oklink.com/xlayer/address/0x075a7b84336ed268df32a76f2a2c7c119ba5480c) |
-| Strategist | `0x473308cf1778c6c717116f48ebd18e419013277d` | [OKLink ↗](https://www.oklink.com/xlayer/address/0x473308cf1778c6c717116f48ebd18e419013277d) |
-| Sentinel   | `0x31a0b567118235daa01490d1c751128d3874254f` | [OKLink ↗](https://www.oklink.com/xlayer/address/0x31a0b567118235daa01490d1c751128d3874254f) |
+| Agent      | Role                                      | Address                                      | Explorer                                                                                     | Registration Tx |
+| ---------- | ----------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------- |
+| Curator    | Orchestrator — cycles, payments, registry | `0x726cf0c4fe559db9a32396161694c7b88c60c947` | [OKLink ↗](https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947) | [0x2da165...8748](https://www.oklink.com/xlayer/tx/0x2da165488f92f48167e443b7208f5949d049476bb54554893aa78dbb24e98748) |
+| Strategist | Alpha scanner — paid per scan via x402    | `0x3c69ed447ccd8d515e73dd81e6a0f56edd7623ed` | [OKLink ↗](https://www.oklink.com/xlayer/address/0x3c69ed447ccd8d515e73dd81e6a0f56edd7623ed) | [0x873446...7e5d](https://www.oklink.com/xlayer/tx/0x8734468148b51b117857c7bb55cca35f9224c813a9cb787aad4429fa0a297e5d) |
+| Sentinel   | Risk gate — paid per assessment via x402  | `0x95923bc7280cc182559f2bc7b368c09448726d4f` | [OKLink ↗](https://www.oklink.com/xlayer/address/0x95923bc7280cc182559f2bc7b368c09448726d4f) | [0x85006e...7330](https://www.oklink.com/xlayer/tx/0x85006e74557d47809b373e56032575248841f02492ef1bf02015fd5eb6537330) |
+| Executor   | Trade + yield execution — paid per deploy | `0x88a200567d660d88ac0afbe781e9e97b6d570ab6` | [OKLink ↗](https://www.oklink.com/xlayer/address/0x88a200567d660d88ac0afbe781e9e97b6d570ab6) | [0x036f45...bfb4](https://www.oklink.com/xlayer/tx/0x036f4544058691495d99e8917774848877db98e02a2d405d6d4fb845ed58bfb4) |
 
 ---
 
@@ -55,8 +55,8 @@ curl -X POST https://api.heliosfi.xyz/api/cycle  # trigger a manual cycle
 
 ### Verify Onchain Activity
 
-- Executor wallet (primary): https://www.oklink.com/xlayer/address/0x258e3035242a05b53ca82c5dffeaeadee2af0d2c
-- HeliosRegistry contract: https://www.oklink.com/xlayer/address/0x5b5F83A465EF625B7d2E6a26c848517fD31D0bb3
+- Curator wallet (primary): https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947
+- HeliosRegistry contract: https://www.oklink.com/xlayer/address/0xbA74426e9144bf68f986ec239E32a882843487E7
 - Dashboard (live): https://heliosfi.xyz/dashboard
 
 ### SKILL.md — Discoverable by Any Agent
@@ -247,7 +247,7 @@ Post-exit:
 ## Tech Stack
 
 - **Runtime:** Bun — state machine
-- **Agent AI:** OpenAI gpt-4o via Vercel AI SDK
+- **Agent AI:** OpenAI gpt-4o-mini via Vercel AI SDK
 - **Backend:** Hono (REST + SSE + x402-gated routes)
 - **Frontend:** Next.js 16, Tailwind v4, shadcn/ui, Recharts
 - **Database:** Supabase + Drizzle ORM
@@ -273,7 +273,7 @@ helios/
 │           ├── tools/      # OKX OnchainOS skill wrappers (14 files)
 │           ├── prompts/    # agent system prompts + cycle context
 │           ├── routes/     # Hono: x402-gated + REST + SSE
-│           ├── ai/         # Vercel AI SDK setup (gpt-4o)
+│           ├── ai/         # Vercel AI SDK setup (gpt-4o-mini)
 │           ├── memory/     # rolling cycle context for LLM
 │           ├── wallet/     # OKX TEE wallet client
 │           ├── registry/   # leaderboard registration + stats posting
@@ -329,7 +329,7 @@ STRATEGIST_WALLET_ADDRESS=
 SENTINEL_WALLET_ADDRESS=
 EXECUTOR_WALLET_ADDRESS=
 
-HELIOS_REGISTRY_ADDRESS=0x5b5F83A465EF625B7d2E6a26c848517fD31D0bb3
+HELIOS_REGISTRY_ADDRESS=0xbA74426e9144bf68f986ec239E32a882843487E7
 XLAYER_RPC_URL=https://rpc.xlayer.tech
 
 SWARM_NAME=

@@ -14,7 +14,7 @@ export function buildAgentConfigs(): Record<AgentName, AgentConfig> {
         address: (process.env.CURATOR_WALLET_ADDRESS ?? "") as `0x${string}`,
       },
       tools: curatorTools,
-      llm: { model: "gpt-4o", apiKey: OPENAI_API_KEY },
+      llm: { model: "gpt-4o-mini", apiKey: OPENAI_API_KEY },
       prompts: { strategy: "", budget: "" },
     },
     strategist: {
@@ -24,7 +24,7 @@ export function buildAgentConfigs(): Record<AgentName, AgentConfig> {
         address: (process.env.STRATEGIST_WALLET_ADDRESS ?? "") as `0x${string}`,
       },
       tools: strategistTools,
-      llm: { model: "gpt-4o", apiKey: OPENAI_API_KEY },
+      llm: { model: "gpt-4o-mini", apiKey: OPENAI_API_KEY },
       prompts: {
         strategy: STRATEGIST_SYSTEM_PROMPT,
         budget: buildStrategistBudget({
@@ -41,7 +41,7 @@ export function buildAgentConfigs(): Record<AgentName, AgentConfig> {
         address: (process.env.SENTINEL_WALLET_ADDRESS ?? "") as `0x${string}`,
       },
       tools: sentinelTools,
-      llm: { model: "gpt-4o", apiKey: OPENAI_API_KEY },
+      llm: { model: "gpt-4o-mini", apiKey: OPENAI_API_KEY },
       prompts: { strategy: SENTINEL_SYSTEM_PROMPT, budget: "" },
     },
     executor: {
@@ -51,7 +51,7 @@ export function buildAgentConfigs(): Record<AgentName, AgentConfig> {
         address: (process.env.EXECUTOR_WALLET_ADDRESS ?? "") as `0x${string}`,
       },
       tools: executorTools,
-      llm: { model: "gpt-4o", apiKey: OPENAI_API_KEY },
+      llm: { model: "gpt-4o-mini", apiKey: OPENAI_API_KEY },
       prompts: {
         strategy: EXECUTOR_SYSTEM_PROMPT,
         budget: buildExecutorBudget({

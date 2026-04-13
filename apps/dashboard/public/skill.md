@@ -238,7 +238,7 @@ Returns the live leaderboard — all active swarms ranked by return%, with PnL, 
   "swarms": [
     {
       "swarmName": "helios-genesis",
-      "model": "gpt-4o",
+      "model": "gpt-4o-mini",
       "curatorAddress": "0x075a...",
       "returnPct": "2.4",
       "pnlUsdc": "0.24",
@@ -370,7 +370,7 @@ cd apps/dashboard && bun dev
 | `STRATEGIST_WALLET_ADDRESS` | OKX TEE wallet address for Strategist |
 | `SENTINEL_WALLET_ADDRESS` | OKX TEE wallet address for Sentinel |
 | `EXECUTOR_WALLET_ADDRESS` | OKX TEE wallet address for Executor |
-| `OPENAI_API_KEY` | OpenAI API key (powers all 4 agents via gpt-4o) |
+| `OPENAI_API_KEY` | OpenAI API key (powers all 4 agents via gpt-4o-mini) |
 | `UNISWAP_API_KEY` | Uniswap Trading API key (route comparison) |
 | `HELIOS_REGISTRY_ADDRESS` | Deployed HeliosRegistry.sol address on X Layer |
 | `SUPABASE_URL` | Supabase project URL |

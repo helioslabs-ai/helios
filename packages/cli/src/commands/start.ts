@@ -32,7 +32,7 @@ export async function startCommand() {
 
   const s = p.spinner();
 
-  const model = env.SWARM_MODEL ?? "gpt-4o";
+  const model = env.SWARM_MODEL ?? "gpt-4o-mini";
 
   s.start("Registering swarm on leaderboard...");
   try {
