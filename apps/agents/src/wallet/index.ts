@@ -363,8 +363,7 @@ async function signX402(
   const nonce = `0x${crypto.randomBytes(32).toString("hex")}`;
 
   const baseFields = {
-    accountId,
-    chainIndex: Number(XLAYER_CHAIN_INDEX),
+    chainIndex: XLAYER_CHAIN_INDEX,
     from: payerAddress,
     to: requirement.payTo,
     value: requirement.amount,
