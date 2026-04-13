@@ -2,7 +2,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { fetchSwarm, getOkLinkAddressUrl } from "@/lib/api";
 
-function StatCard({ label, value, positive }: { label: string; value: string | number; positive?: boolean }) {
+function StatCard({
+  label,
+  value,
+  positive,
+}: {
+  label: string;
+  value: string | number;
+  positive?: boolean;
+}) {
   return (
     <div className="rounded-lg border border-[#1a1c24] bg-[#0A0C10] px-5 py-4">
       <div
@@ -30,7 +38,9 @@ function StatusBadge({ status }: { status: string }) {
   };
   const cls = styles[status] ?? styles.stopped;
   return (
-    <span className={`inline-flex items-center rounded border px-2.5 py-1 text-xs font-mono font-medium uppercase tracking-wider ${cls}`}>
+    <span
+      className={`inline-flex items-center rounded border px-2.5 py-1 text-xs font-mono font-medium uppercase tracking-wider ${cls}`}
+    >
       {status}
     </span>
   );

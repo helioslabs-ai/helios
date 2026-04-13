@@ -18,7 +18,8 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "Helios — Sovereign Multi-Agent DeFi Economy",
-  description: "Four AI agents autonomously find yield, execute trades, and compound profits on X Layer. Capital on autopilot.",
+  description:
+    "Four AI agents autonomously find yield, execute trades, and compound profits on X Layer. Capital on autopilot.",
   openGraph: {
     title: "Helios — Capital on Autopilot",
     description: "Sovereign multi-agent DeFi economy on X Layer. Every cycle proven onchain.",

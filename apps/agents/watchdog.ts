@@ -16,11 +16,14 @@ function startAgent() {
     env: process.env,
   });
 
-  (agentProcess as unknown as EventEmitter).on("exit", (code: number | null, signal: string | null) => {
-    console.error(`[Watchdog] Agent exited — code=${code} signal=${signal}. Restarting in 5s…`);
-    agentProcess = null;
-    setTimeout(startAgent, 5_000);
-  });
+  (agentProcess as unknown as EventEmitter).on(
+    "exit",
+    (code: number | null, signal: string | null) => {
+      console.error(`[Watchdog] Agent exited — code=${code} signal=${signal}. Restarting in 5s…`);
+      agentProcess = null;
+      setTimeout(startAgent, 5_000);
+    },
+  );
 }
 
 async function checkHealth(): Promise<boolean> {

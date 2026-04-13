@@ -61,32 +61,32 @@ const STATE_COLOR: Record<SwarmState, string> = {
 };
 
 const AGENT_ROLES: Record<AgentName, { role: string; icon: string }> = {
-  curator:    { role: "Orchestrator", icon: "◈" },
+  curator: { role: "Orchestrator", icon: "◈" },
   strategist: { role: "Alpha Scanner", icon: "◎" },
-  sentinel:   { role: "Risk Guard", icon: "◉" },
-  executor:   { role: "Trade Engine", icon: "◆" },
+  sentinel: { role: "Risk Guard", icon: "◉" },
+  executor: { role: "Trade Engine", icon: "◆" },
 };
 
 const AGENT_ACTIVE: Partial<Record<SwarmState, AgentName>> = {
   STRATEGIST_SCAN: "strategist",
-  SENTINEL_CHECK:  "sentinel",
+  SENTINEL_CHECK: "sentinel",
   EXECUTOR_DEPLOY: "executor",
-  COMPOUNDING:     "executor",
-  YIELD_PARK:      "curator",
+  COMPOUNDING: "executor",
+  YIELD_PARK: "curator",
 };
 
 const ACTION_COLOR: Record<CycleAction, string> = {
-  buy:        "text-[#FFA30F]",
+  buy: "text-[#FFA30F]",
   yield_park: "text-[#10b981]",
-  no_alpha:   "text-[#64748b]",
-  hold:       "text-[#64748b]",
+  no_alpha: "text-[#64748b]",
+  hold: "text-[#64748b]",
 };
 
 const ACTION_DOT: Record<CycleAction, string> = {
-  buy:        "bg-[#FFA30F]",
+  buy: "bg-[#FFA30F]",
   yield_park: "bg-[#10b981]",
-  no_alpha:   "bg-[#334155]",
-  hold:       "bg-[#334155]",
+  no_alpha: "bg-[#334155]",
+  hold: "bg-[#334155]",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -123,19 +123,22 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
 
   async function triggerCycle() {
     setTriggering(true);
-    try { await fetch(getCycleUrl(), { method: "POST" }); }
-    finally { setTriggering(false); }
+    try {
+      await fetch(getCycleUrl(), { method: "POST" });
+    } finally {
+      setTriggering(false);
+    }
   }
 
   const { status, agents, economy, cycles, positions } = data;
   const lastCycle = cycles.length > 0 ? cycles[cycles.length - 1] : null;
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: "overview",     label: "Overview" },
-    { id: "cycles",       label: `Cycles · ${cycles.length}` },
-    { id: "portfolio",    label: "Portfolio" },
-    { id: "economy",      label: "Economy" },
-    { id: "leaderboard",  label: "Leaderboard" },
+    { id: "overview", label: "Overview" },
+    { id: "cycles", label: `Cycles · ${cycles.length}` },
+    { id: "portfolio", label: "Portfolio" },
+    { id: "economy", label: "Economy" },
+    { id: "leaderboard", label: "Leaderboard" },
   ];
 
   return (
@@ -150,18 +153,10 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
           <div className="flex items-start justify-between gap-4 mb-8">
             <div className="flex items-center gap-3">
               <div className="size-10 shrink-0">
-                <Image
-                  src="/helios-icon.svg"
-                  alt="Helios"
-                  width={40}
-                  height={40}
-                  priority
-                />
+                <Image src="/helios-icon.svg" alt="Helios" width={40} height={40} priority />
               </div>
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-white leading-none">
-                  Helios
-                </h1>
+                <h1 className="text-xl font-bold tracking-tight text-white leading-none">Helios</h1>
                 <p className="text-[11px] font-mono text-[#64748b] mt-0.5 uppercase tracking-widest">
                   War Room · X Layer
                 </p>
@@ -170,23 +165,32 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
 
             <div className="flex items-center gap-3">
               {/* Live indicator */}
-              <span className={cn(
-                "flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded border",
-                live
-                  ? "border-[#10b981]/30 text-[#10b981] bg-[#10b981]/8"
-                  : "border-[#1a1c24] text-[#334155] bg-transparent",
-              )}>
-                <span className={cn("size-1.5 rounded-full", live ? "bg-[#10b981] animate-pulse-gold" : "bg-[#334155]")} />
+              <span
+                className={cn(
+                  "flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded border",
+                  live
+                    ? "border-[#10b981]/30 text-[#10b981] bg-[#10b981]/8"
+                    : "border-[#1a1c24] text-[#334155] bg-transparent",
+                )}
+              >
+                <span
+                  className={cn(
+                    "size-1.5 rounded-full",
+                    live ? "bg-[#10b981] animate-pulse-gold" : "bg-[#334155]",
+                  )}
+                />
                 {live ? "LIVE" : "OFFLINE"}
               </span>
 
               {/* State */}
-              <span className={cn(
-                "text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-1 rounded border",
-                status.swarmState !== "IDLE"
-                  ? "border-[#FFA30F]/30 text-[#FFA30F] bg-[#FFA30F]/8"
-                  : "border-[#1a1c24] text-[#64748b] bg-transparent",
-              )}>
+              <span
+                className={cn(
+                  "text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-1 rounded border",
+                  status.swarmState !== "IDLE"
+                    ? "border-[#FFA30F]/30 text-[#FFA30F] bg-[#FFA30F]/8"
+                    : "border-[#1a1c24] text-[#64748b] bg-transparent",
+                )}
+              >
                 {STATE_LABEL[status.swarmState]}
               </span>
 
@@ -224,10 +228,10 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
 
           {/* Stats row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-px rounded-lg overflow-hidden border border-[#1a1c24]">
-            <StatCell label="Total Cycles"    value={economy.totalCycles.toString()} />
-            <StatCell label="Onchain Txns"    value={economy.totalX402Txns.toString()} sub="X Layer" />
-            <StatCell label="x402 Paid"       value={`$${economy.totalX402PaidUsdc}`} sub="USDG" accent />
-            <StatCell label="Open Positions"  value={positions.openPositions.length.toString()} />
+            <StatCell label="Total Cycles" value={economy.totalCycles.toString()} />
+            <StatCell label="Onchain Txns" value={economy.totalX402Txns.toString()} sub="X Layer" />
+            <StatCell label="x402 Paid" value={`$${economy.totalX402PaidUsdc}`} sub="USDG" accent />
+            <StatCell label="Open Positions" value={positions.openPositions.length.toString()} />
             <StatCell
               label="No-Alpha Streak"
               value={status.consecutiveNoAlpha.toString()}
@@ -290,9 +294,30 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
         <div className="mx-auto max-w-7xl flex items-center justify-between text-[10px] font-mono text-[#334155]">
           <span>Helios · X Layer (chainId 196) · OKX BuildX S2</span>
           <div className="flex items-center gap-4">
-            <a href="https://github.com/helioslabs-ai/helios" target="_blank" rel="noopener noreferrer" className="hover:text-[#64748b] transition-colors">GitHub</a>
-            <a href="https://github.com/helioslabs-ai/helios/blob/main/SKILL.md" target="_blank" rel="noopener noreferrer" className="hover:text-[#64748b] transition-colors">SKILL.md</a>
-            <a href="https://www.oklink.com/xlayer" target="_blank" rel="noopener noreferrer" className="hover:text-[#64748b] transition-colors">OKLink ↗</a>
+            <a
+              href="https://github.com/helioslabs-ai/helios"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#64748b] transition-colors"
+            >
+              GitHub
+            </a>
+            <a
+              href="https://github.com/helioslabs-ai/helios/blob/main/SKILL.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#64748b] transition-colors"
+            >
+              SKILL.md
+            </a>
+            <a
+              href="https://www.oklink.com/xlayer"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#64748b] transition-colors"
+            >
+              OKLink ↗
+            </a>
           </div>
         </div>
       </footer>
@@ -303,17 +328,29 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
 // ── StatCell ──────────────────────────────────────────────────────────────────
 
 function StatCell({
-  label, value, sub, accent, danger,
+  label,
+  value,
+  sub,
+  accent,
+  danger,
 }: {
-  label: string; value: string; sub?: string; accent?: boolean; danger?: boolean;
+  label: string;
+  value: string;
+  sub?: string;
+  accent?: boolean;
+  danger?: boolean;
 }) {
   return (
     <div className="bg-[#0A0C10] px-4 py-3">
-      <div className="text-[9px] font-mono uppercase tracking-[0.15em] text-[#4a5568] mb-1">{label}</div>
-      <div className={cn(
-        "text-base font-mono font-bold tabular-nums leading-none",
-        accent ? "text-[#FFA30F]" : danger ? "text-[#ef4444]" : "text-white",
-      )}>
+      <div className="text-[9px] font-mono uppercase tracking-[0.15em] text-[#4a5568] mb-1">
+        {label}
+      </div>
+      <div
+        className={cn(
+          "text-base font-mono font-bold tabular-nums leading-none",
+          accent ? "text-[#FFA30F]" : danger ? "text-[#ef4444]" : "text-white",
+        )}
+      >
         {value}
       </div>
       {sub && <div className="text-[9px] font-mono text-[#334155] mt-0.5">{sub}</div>}
@@ -346,7 +383,12 @@ function Card({ children, className }: { children: React.ReactNode; className?: 
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function OverviewTab({
-  status, agents, cycles, lastCycle, positions, economy,
+  status,
+  agents,
+  cycles,
+  lastCycle,
+  positions,
+  economy,
 }: {
   status: SwarmStatus;
   agents: DashboardData["agents"];
@@ -367,14 +409,14 @@ function OverviewTab({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
       {/* Left: Agents + State ─────────────────────────────────────────── */}
       <div className="flex flex-col gap-4">
         <SectionLabel>Agent Swarm</SectionLabel>
         <div className="flex flex-col gap-2">
           {agentNames.map((name) => {
             const agent = agents.find((a) => a.name === name);
-            const isActive = AGENT_ACTIVE[status.swarmState] === name ||
+            const isActive =
+              AGENT_ACTIVE[status.swarmState] === name ||
               (status.swarmState !== "IDLE" && name === "curator");
             const isHalted = status.circuitBreaker.halted;
             return (
@@ -395,15 +437,24 @@ function OverviewTab({
             <SectionLabel>Last Cycle Reasoning</SectionLabel>
             <Card className="p-4">
               <div className="flex items-center gap-2 mb-2">
-                <span className={cn("size-1.5 rounded-full shrink-0", ACTION_DOT[lastCycle.action])} />
-                <span className={cn("text-[10px] font-mono font-semibold uppercase tracking-widest", ACTION_COLOR[lastCycle.action])}>
+                <span
+                  className={cn("size-1.5 rounded-full shrink-0", ACTION_DOT[lastCycle.action])}
+                />
+                <span
+                  className={cn(
+                    "text-[10px] font-mono font-semibold uppercase tracking-widest",
+                    ACTION_COLOR[lastCycle.action],
+                  )}
+                >
                   {lastCycle.action.replace("_", " ")}
                 </span>
                 {lastCycle.sentinelVerdict && (
-                  <span className={cn(
-                    "text-[9px] font-mono font-bold uppercase tracking-widest ml-auto",
-                    lastCycle.sentinelVerdict === "CLEAR" ? "text-[#10b981]" : "text-[#ef4444]",
-                  )}>
+                  <span
+                    className={cn(
+                      "text-[9px] font-mono font-bold uppercase tracking-widest ml-auto",
+                      lastCycle.sentinelVerdict === "CLEAR" ? "text-[#10b981]" : "text-[#ef4444]",
+                    )}
+                  >
                     {lastCycle.sentinelVerdict}
                   </span>
                 )}
@@ -445,19 +496,38 @@ function OverviewTab({
             <Card className="p-4">
               <div className="h-16">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={actionsChart} barSize={6} margin={{ top: 2, right: 0, bottom: 0, left: -20 }}>
+                  <BarChart
+                    data={actionsChart}
+                    barSize={6}
+                    margin={{ top: 2, right: 0, bottom: 0, left: -20 }}
+                  >
                     <XAxis dataKey="i" hide />
                     <YAxis hide domain={[0, 3]} />
                     <Tooltip
-                      contentStyle={{ background: "#0A0C10", border: "1px solid #1a1c24", borderRadius: 6, fontSize: 10 }}
-                      formatter={(_v: unknown, _n: unknown, props: { payload?: { action?: string } }) => [props.payload?.action ?? "", ""]}
+                      contentStyle={{
+                        background: "#0A0C10",
+                        border: "1px solid #1a1c24",
+                        borderRadius: 6,
+                        fontSize: 10,
+                      }}
+                      formatter={(
+                        _v: unknown,
+                        _n: unknown,
+                        props: { payload?: { action?: string } },
+                      ) => [props.payload?.action ?? "", ""]}
                       labelFormatter={() => ""}
                     />
                     <Bar dataKey="val" radius={[2, 2, 0, 0]}>
                       {actionsChart.map((entry, i) => (
                         <Cell
                           key={i}
-                          fill={entry.action === "buy" ? "#FFA30F" : entry.action === "yield_park" ? "#10b981" : "#1a1c24"}
+                          fill={
+                            entry.action === "buy"
+                              ? "#FFA30F"
+                              : entry.action === "yield_park"
+                                ? "#10b981"
+                                : "#1a1c24"
+                          }
                         />
                       ))}
                     </Bar>
@@ -470,7 +540,10 @@ function OverviewTab({
                   { color: "#10b981", label: "Yield" },
                   { color: "#1a1c24", label: "No Alpha" },
                 ].map(({ color, label }) => (
-                  <span key={label} className="flex items-center gap-1.5 text-[9px] font-mono text-[#64748b]">
+                  <span
+                    key={label}
+                    className="flex items-center gap-1.5 text-[9px] font-mono text-[#64748b]"
+                  >
                     <span className="size-2 rounded-sm" style={{ background: color }} />
                     {label}
                   </span>
@@ -489,7 +562,9 @@ function OverviewTab({
           {positions.yieldPosition ? (
             <YieldCard y={positions.yieldPosition} />
           ) : (
-            <Card className="px-4 py-3 text-[11px] font-mono text-[#334155]">No yield position</Card>
+            <Card className="px-4 py-3 text-[11px] font-mono text-[#334155]">
+              No yield position
+            </Card>
           )}
           {/* Open trades */}
           {positions.openPositions.length > 0 ? (
@@ -513,28 +588,40 @@ function OverviewTab({
 
 // ── AgentRow ──────────────────────────────────────────────────────────────────
 
-function AgentRow({ name, address, isActive, isHalted }: {
-  name: AgentName; address: string; isActive: boolean; isHalted: boolean;
+function AgentRow({
+  name,
+  address,
+  isActive,
+  isHalted,
+}: {
+  name: AgentName;
+  address: string;
+  isActive: boolean;
+  isHalted: boolean;
 }) {
   const { role, icon } = AGENT_ROLES[name];
   const statusLabel = isHalted ? "HALTED" : isActive ? "ACTIVE" : "IDLE";
   const statusCls = isHalted
     ? "text-[#ef4444] border-[#ef4444]/30 bg-[#ef4444]/8"
     : isActive
-    ? "text-[#FFA30F] border-[#FFA30F]/30 bg-[#FFA30F]/8"
-    : "text-[#334155] border-[#1a1c24] bg-transparent";
+      ? "text-[#FFA30F] border-[#FFA30F]/30 bg-[#FFA30F]/8"
+      : "text-[#334155] border-[#1a1c24] bg-transparent";
   const glowCls = isActive && !isHalted ? "shadow-gold-glow border-[#FFA30F]/20" : "";
 
   return (
-    <div className={cn(
-      "rounded-lg border bg-[#0A0C10] px-4 py-3 flex items-center gap-3 transition-all",
-      "border-[#1a1c24]",
-      glowCls,
-    )}>
-      <span className={cn(
-        "text-base shrink-0",
-        isHalted ? "text-[#ef4444]" : isActive ? "text-[#FFA30F]" : "text-[#334155]",
-      )}>
+    <div
+      className={cn(
+        "rounded-lg border bg-[#0A0C10] px-4 py-3 flex items-center gap-3 transition-all",
+        "border-[#1a1c24]",
+        glowCls,
+      )}
+    >
+      <span
+        className={cn(
+          "text-base shrink-0",
+          isHalted ? "text-[#ef4444]" : isActive ? "text-[#FFA30F]" : "text-[#334155]",
+        )}
+      >
         {icon}
       </span>
       <div className="flex-1 min-w-0">
@@ -555,11 +642,13 @@ function AgentRow({ name, address, isActive, isHalted }: {
           <span className="text-[10px] font-mono text-[#1a1c24]">no address</span>
         )}
       </div>
-      <span className={cn(
-        "text-[9px] font-mono font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border shrink-0",
-        statusCls,
-        isActive && !isHalted ? "animate-pulse-gold" : "",
-      )}>
+      <span
+        className={cn(
+          "text-[9px] font-mono font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border shrink-0",
+          statusCls,
+          isActive && !isHalted ? "animate-pulse-gold" : "",
+        )}
+      >
         {statusLabel}
       </span>
     </div>
@@ -630,7 +719,9 @@ function YieldCard({ y }: { y: YieldPosition }) {
         <div className="text-sm font-mono font-semibold text-[#10b981]">{y.platform}</div>
       </div>
       <div className="flex items-center gap-4 text-sm font-mono">
-        <span className="text-white font-bold">${y.amountUsdc} <span className="text-[#64748b] text-[10px]">USDC</span></span>
+        <span className="text-white font-bold">
+          ${y.amountUsdc} <span className="text-[#64748b] text-[10px]">USDC</span>
+        </span>
         <span className="text-[#10b981] font-semibold">{y.apy}</span>
       </div>
     </div>
@@ -646,14 +737,19 @@ function OpenPositionCard({ pos }: { pos: Position }) {
       <div>
         <div className="text-[9px] font-mono uppercase tracking-widest text-[#4a5568]">Trade</div>
         <div className="text-sm font-mono font-bold text-white">{pos.token}</div>
-        <div className="text-[10px] font-mono text-[#64748b]">${pos.sizeUsdc} entry @ ${pos.entryPrice}</div>
+        <div className="text-[10px] font-mono text-[#64748b]">
+          ${pos.sizeUsdc} entry @ ${pos.entryPrice}
+        </div>
       </div>
       {pos.pnlPct !== undefined && (
-        <div className={cn(
-          "text-lg font-mono font-bold tabular-nums",
-          pnlPositive ? "text-[#10b981]" : "text-[#ef4444]",
-        )}>
-          {pnlPositive ? "+" : ""}{pos.pnlPct.toFixed(2)}%
+        <div
+          className={cn(
+            "text-lg font-mono font-bold tabular-nums",
+            pnlPositive ? "text-[#10b981]" : "text-[#ef4444]",
+          )}
+        >
+          {pnlPositive ? "+" : ""}
+          {pos.pnlPct.toFixed(2)}%
         </div>
       )}
     </div>
@@ -665,11 +761,13 @@ function OpenPositionCard({ pos }: { pos: Position }) {
 function EconomyMiniChart({ economy }: { economy: DashboardData["economy"] }) {
   const agents: AgentName[] = ["strategist", "sentinel", "executor", "curator"];
   const colors = ["#FFA30F", "#3b82f6", "#10b981", "#64748b"];
-  const data = agents.map((a, i) => ({
-    name: a,
-    value: Number.parseFloat(economy.perAgent[a] ?? "0"),
-    color: colors[i],
-  })).filter((d) => d.value > 0);
+  const data = agents
+    .map((a, i) => ({
+      name: a,
+      value: Number.parseFloat(economy.perAgent[a] ?? "0"),
+      color: colors[i],
+    }))
+    .filter((d) => d.value > 0);
 
   const total = data.reduce((s, d) => s + d.value, 0);
 
@@ -693,7 +791,12 @@ function EconomyMiniChart({ economy }: { economy: DashboardData["economy"] }) {
                   ))}
                 </Pie>
                 <Tooltip
-                  contentStyle={{ background: "#0A0C10", border: "1px solid #1a1c24", borderRadius: 4, fontSize: 10 }}
+                  contentStyle={{
+                    background: "#0A0C10",
+                    border: "1px solid #1a1c24",
+                    borderRadius: 4,
+                    fontSize: 10,
+                  }}
                   formatter={(v: unknown) => [`$${(v as number).toFixed(4)}`, ""]}
                 />
               </PieChart>
@@ -747,7 +850,10 @@ function CyclesTab({ cycles }: { cycles: CycleSummary[] }) {
             <thead>
               <tr className="border-b border-[#1a1c24] bg-[#0A0C10]">
                 {["Time", "Action", "Sentinel", "Reasoning", "Tx Hashes", "Cycle ID"].map((h) => (
-                  <th key={h} className="px-4 py-2.5 text-left text-[9px] uppercase tracking-[0.15em] text-[#4a5568] font-normal">
+                  <th
+                    key={h}
+                    className="px-4 py-2.5 text-left text-[9px] uppercase tracking-[0.15em] text-[#4a5568] font-normal"
+                  >
                     {h}
                   </th>
                 ))}
@@ -764,8 +870,11 @@ function CyclesTab({ cycles }: { cycles: CycleSummary[] }) {
                 >
                   <td className="px-4 py-2.5 text-[#64748b] tabular-nums whitespace-nowrap">
                     {new Date(cycle.ts).toLocaleString("en-US", {
-                      month: "short", day: "numeric",
-                      hour: "2-digit", minute: "2-digit", hour12: false,
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
                     })}
                   </td>
                   <td className="px-4 py-2.5">
@@ -775,23 +884,28 @@ function CyclesTab({ cycles }: { cycles: CycleSummary[] }) {
                   </td>
                   <td className="px-4 py-2.5">
                     {cycle.sentinelVerdict ? (
-                      <span className={cn(
-                        "text-[9px] font-bold uppercase tracking-widest",
-                        cycle.sentinelVerdict === "CLEAR" ? "text-[#10b981]" : "text-[#ef4444]",
-                      )}>
+                      <span
+                        className={cn(
+                          "text-[9px] font-bold uppercase tracking-widest",
+                          cycle.sentinelVerdict === "CLEAR" ? "text-[#10b981]" : "text-[#ef4444]",
+                        )}
+                      >
                         {cycle.sentinelVerdict}
                       </span>
                     ) : (
                       <span className="text-[#334155]">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-[#64748b] max-w-xs truncate" title={cycle.reasoning}>
+                  <td
+                    className="px-4 py-2.5 text-[#64748b] max-w-xs truncate"
+                    title={cycle.reasoning}
+                  >
                     {cycle.reasoning || "—"}
                   </td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      {cycle.txHashes.length > 0
-                        ? cycle.txHashes.map((hash) => (
+                      {cycle.txHashes.length > 0 ? (
+                        cycle.txHashes.map((hash) => (
                           <a
                             key={hash}
                             href={getOkLinkTxUrl(hash)}
@@ -802,8 +916,9 @@ function CyclesTab({ cycles }: { cycles: CycleSummary[] }) {
                             {hash.slice(0, 8)}…
                           </a>
                         ))
-                        : <span className="text-[#334155]">—</span>
-                      }
+                      ) : (
+                        <span className="text-[#334155]">—</span>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-2.5 text-[#334155]">{cycle.id.slice(0, 8)}…</td>
@@ -837,7 +952,9 @@ function PortfolioTab({ positions }: { positions: DashboardData["positions"] }) 
           <SectionLabel>Yield Position</SectionLabel>
           <Card className="p-4 flex items-center justify-between">
             <div className="flex flex-col gap-1">
-              <span className="text-xs font-mono font-semibold text-[#10b981]">{positions.yieldPosition.platform}</span>
+              <span className="text-xs font-mono font-semibold text-[#10b981]">
+                {positions.yieldPosition.platform}
+              </span>
               <span className="text-[10px] font-mono text-[#64748b]">
                 Deposited {formatRelativeTime(positions.yieldPosition.depositedAt)}
               </span>
@@ -866,15 +983,32 @@ function PortfolioTab({ positions }: { positions: DashboardData["positions"] }) 
                 <AreaChart data={pnlChart} margin={{ top: 4, right: 4, bottom: 0, left: -28 }}>
                   <defs>
                     <linearGradient id="pnlGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#FFA30F" stopOpacity={0.3} />
+                      <stop offset="5%" stopColor="#FFA30F" stopOpacity={0.3} />
                       <stop offset="95%" stopColor="#FFA30F" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="token" tick={{ fill: "#4a5568", fontSize: 9 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: "#4a5568", fontSize: 9 }} axisLine={false} tickLine={false} />
+                  <XAxis
+                    dataKey="token"
+                    tick={{ fill: "#4a5568", fontSize: 9 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: "#4a5568", fontSize: 9 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
                   <Tooltip
-                    contentStyle={{ background: "#0A0C10", border: "1px solid #1a1c24", borderRadius: 6, fontSize: 10 }}
-                    formatter={(v: unknown) => { const n = v as number; return [`${n > 0 ? "+" : ""}${n.toFixed(2)}%`, "P&L"]; }}
+                    contentStyle={{
+                      background: "#0A0C10",
+                      border: "1px solid #1a1c24",
+                      borderRadius: 6,
+                      fontSize: 10,
+                    }}
+                    formatter={(v: unknown) => {
+                      const n = v as number;
+                      return [`${n > 0 ? "+" : ""}${n.toFixed(2)}%`, "P&L"];
+                    }}
                   />
                   <Area
                     type="monotone"
@@ -904,7 +1038,10 @@ function PortfolioTab({ positions }: { positions: DashboardData["positions"] }) 
               <thead>
                 <tr className="border-b border-[#1a1c24] bg-[#0A0C10]">
                   {["Token", "Entry Price", "Size", "P&L", "Status", "Age", "Entry Tx"].map((h) => (
-                    <th key={h} className="px-4 py-2.5 text-left text-[9px] uppercase tracking-[0.15em] text-[#4a5568] font-normal">
+                    <th
+                      key={h}
+                      className="px-4 py-2.5 text-left text-[9px] uppercase tracking-[0.15em] text-[#4a5568] font-normal"
+                    >
                       {h}
                     </th>
                   ))}
@@ -914,24 +1051,44 @@ function PortfolioTab({ positions }: { positions: DashboardData["positions"] }) 
                 {allPositions.map((pos) => {
                   const pnlPos = (pos.pnlPct ?? 0) >= 0;
                   return (
-                    <tr key={pos.entryTxHash} className="border-b border-[#1a1c24]/60 hover:bg-[#13151C] transition-colors">
+                    <tr
+                      key={pos.entryTxHash}
+                      className="border-b border-[#1a1c24]/60 hover:bg-[#13151C] transition-colors"
+                    >
                       <td className="px-4 py-2.5 font-semibold text-white">{pos.token}</td>
                       <td className="px-4 py-2.5 text-[#64748b] tabular-nums">${pos.entryPrice}</td>
                       <td className="px-4 py-2.5 text-[#64748b] tabular-nums">${pos.sizeUsdc}</td>
-                      <td className={cn("px-4 py-2.5 font-semibold tabular-nums", pos.pnlPct !== undefined ? (pnlPos ? "text-[#10b981]" : "text-[#ef4444]") : "text-[#334155]")}>
-                        {pos.pnlPct !== undefined ? `${pnlPos ? "+" : ""}${pos.pnlPct.toFixed(2)}%` : "—"}
+                      <td
+                        className={cn(
+                          "px-4 py-2.5 font-semibold tabular-nums",
+                          pos.pnlPct !== undefined
+                            ? pnlPos
+                              ? "text-[#10b981]"
+                              : "text-[#ef4444]"
+                            : "text-[#334155]",
+                        )}
+                      >
+                        {pos.pnlPct !== undefined
+                          ? `${pnlPos ? "+" : ""}${pos.pnlPct.toFixed(2)}%`
+                          : "—"}
                       </td>
                       <td className="px-4 py-2.5">
-                        <span className={cn(
-                          "text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border",
-                          pos.status === "open"
-                            ? "text-[#FFA30F] border-[#FFA30F]/30 bg-[#FFA30F]/8"
-                            : "text-[#334155] border-[#1a1c24]",
-                        )}>
-                          {pos.status === "open" ? "OPEN" : (pos.exitCondition?.replace("_", " ")?.toUpperCase() ?? "CLOSED")}
+                        <span
+                          className={cn(
+                            "text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border",
+                            pos.status === "open"
+                              ? "text-[#FFA30F] border-[#FFA30F]/30 bg-[#FFA30F]/8"
+                              : "text-[#334155] border-[#1a1c24]",
+                          )}
+                        >
+                          {pos.status === "open"
+                            ? "OPEN"
+                            : (pos.exitCondition?.replace("_", " ")?.toUpperCase() ?? "CLOSED")}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-[#334155]">{formatRelativeTime(pos.enteredAt)}</td>
+                      <td className="px-4 py-2.5 text-[#334155]">
+                        {formatRelativeTime(pos.enteredAt)}
+                      </td>
                       <td className="px-4 py-2.5">
                         {pos.entryTxHash && (
                           <a
@@ -972,12 +1129,11 @@ function EconomyTab({ economy }: { economy: DashboardData["economy"] }) {
 
   return (
     <div className="flex flex-col gap-6 max-w-3xl">
-
       {/* Summary */}
       <div className="grid grid-cols-3 gap-px rounded-lg overflow-hidden border border-[#1a1c24]">
-        <StatCell label="Total Cycles"    value={economy.totalCycles.toString()} />
+        <StatCell label="Total Cycles" value={economy.totalCycles.toString()} />
         <StatCell label="x402 Paid (USDG)" value={`$${economy.totalX402PaidUsdc}`} accent />
-        <StatCell label="Onchain Txns"    value={economy.totalX402Txns.toString()} sub="X Layer" />
+        <StatCell label="Onchain Txns" value={economy.totalX402Txns.toString()} sub="X Layer" />
       </div>
 
       {/* Per-agent earnings bar */}
@@ -986,7 +1142,11 @@ function EconomyTab({ economy }: { economy: DashboardData["economy"] }) {
         <Card className="p-4">
           <div className="h-40">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} barSize={28} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
+              <BarChart
+                data={barData}
+                barSize={28}
+                margin={{ top: 4, right: 4, bottom: 0, left: -16 }}
+              >
                 <XAxis
                   dataKey="name"
                   tick={{ fill: "#64748b", fontSize: 10, fontFamily: "var(--font-mono)" }}
@@ -999,7 +1159,13 @@ function EconomyTab({ economy }: { economy: DashboardData["economy"] }) {
                   tickLine={false}
                 />
                 <Tooltip
-                  contentStyle={{ background: "#0A0C10", border: "1px solid #1a1c24", borderRadius: 6, fontSize: 10, fontFamily: "var(--font-mono)" }}
+                  contentStyle={{
+                    background: "#0A0C10",
+                    border: "1px solid #1a1c24",
+                    borderRadius: 6,
+                    fontSize: 10,
+                    fontFamily: "var(--font-mono)",
+                  }}
                   formatter={(v: unknown) => [`$${(v as number).toFixed(6)} USDG`, "Earned"]}
                 />
                 <Bar dataKey="earned" radius={[3, 3, 0, 0]}>
@@ -1028,7 +1194,9 @@ function EconomyTab({ economy }: { economy: DashboardData["economy"] }) {
               <div className="flex items-center gap-3">
                 <span className="size-2 rounded-full shrink-0" style={{ background: colors[i] }} />
                 <span className="text-sm font-mono capitalize text-white">{agent}</span>
-                <span className="text-[10px] font-mono text-[#64748b]">{AGENT_ROLES[agent].role}</span>
+                <span className="text-[10px] font-mono text-[#64748b]">
+                  {AGENT_ROLES[agent].role}
+                </span>
               </div>
               <span className="text-base font-mono font-bold text-[#FFA30F] tabular-nums">
                 ${economy.perAgent[agent] ?? "0.0000"}
@@ -1039,7 +1207,8 @@ function EconomyTab({ economy }: { economy: DashboardData["economy"] }) {
       </div>
 
       <div className="text-[10px] font-mono text-[#334155] border border-[#1a1c24] rounded-lg px-4 py-3">
-        Curator pays Strategist, Sentinel, and Executor ~0.001 USDG per service call via EIP-3009 x402 micropayments on X Layer. Every payment is a real onchain transaction.
+        Curator pays Strategist, Sentinel, and Executor ~0.001 USDG per service call via EIP-3009
+        x402 micropayments on X Layer. Every payment is a real onchain transaction.
       </div>
     </div>
   );
@@ -1050,8 +1219,8 @@ function EconomyTab({ economy }: { economy: DashboardData["economy"] }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function LeaderboardTab({ entries }: { entries: LeaderboardEntry[] }) {
-  const sorted = [...entries].sort((a, b) =>
-    Number.parseFloat(b.returnPct ?? "0") - Number.parseFloat(a.returnPct ?? "0"),
+  const sorted = [...entries].sort(
+    (a, b) => Number.parseFloat(b.returnPct ?? "0") - Number.parseFloat(a.returnPct ?? "0"),
   );
 
   return (
@@ -1062,19 +1231,23 @@ function LeaderboardTab({ entries }: { entries: LeaderboardEntry[] }) {
 
       {sorted.length === 0 ? (
         <Card className="px-6 py-12 text-center text-[11px] font-mono text-[#334155]">
-          No swarms registered yet.{" "}
-          <span className="text-[#FFA30F]">Be the first.</span>
+          No swarms registered yet. <span className="text-[#FFA30F]">Be the first.</span>
         </Card>
       ) : (
         <div className="rounded-lg border border-[#1a1c24] overflow-x-auto">
           <table className="w-full text-xs font-mono">
             <thead>
               <tr className="border-b border-[#1a1c24] bg-[#0A0C10]">
-                {["#", "Swarm", "Model", "Return %", "PnL", "Trades", "Cycles", "Status"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-[9px] uppercase tracking-[0.15em] text-[#4a5568] font-normal first:w-8">
-                    {h}
-                  </th>
-                ))}
+                {["#", "Swarm", "Model", "Return %", "PnL", "Trades", "Cycles", "Status"].map(
+                  (h) => (
+                    <th
+                      key={h}
+                      className="px-4 py-3 text-left text-[9px] uppercase tracking-[0.15em] text-[#4a5568] font-normal first:w-8"
+                    >
+                      {h}
+                    </th>
+                  ),
+                )}
               </tr>
             </thead>
             <tbody>
@@ -1084,15 +1257,26 @@ function LeaderboardTab({ entries }: { entries: LeaderboardEntry[] }) {
                 const pos = ret >= 0;
                 const isTop3 = i < 3;
                 return (
-                  <tr key={entry.id} className={cn(
-                    "border-b border-[#1a1c24]/60 hover:bg-[#13151C] transition-colors",
-                    isTop3 && i === 0 && "bg-[#FFA30F]/3",
-                  )}>
+                  <tr
+                    key={entry.id}
+                    className={cn(
+                      "border-b border-[#1a1c24]/60 hover:bg-[#13151C] transition-colors",
+                      isTop3 && i === 0 && "bg-[#FFA30F]/3",
+                    )}
+                  >
                     <td className="px-4 py-3">
-                      <span className={cn(
-                        "font-mono font-bold",
-                        i === 0 ? "text-[#FFA30F]" : i === 1 ? "text-[#94a3b8]" : i === 2 ? "text-[#b45309]" : "text-[#334155]",
-                      )}>
+                      <span
+                        className={cn(
+                          "font-mono font-bold",
+                          i === 0
+                            ? "text-[#FFA30F]"
+                            : i === 1
+                              ? "text-[#94a3b8]"
+                              : i === 2
+                                ? "text-[#b45309]"
+                                : "text-[#334155]",
+                        )}
+                      >
                         {i + 1}
                       </span>
                     </td>
@@ -1108,23 +1292,36 @@ function LeaderboardTab({ entries }: { entries: LeaderboardEntry[] }) {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-[#64748b]">{entry.model ?? "—"}</td>
-                    <td className={cn("px-4 py-3 font-bold tabular-nums", pos ? "text-[#10b981]" : "text-[#ef4444]")}>
-                      {pos ? "+" : ""}{ret.toFixed(2)}%
+                    <td
+                      className={cn(
+                        "px-4 py-3 font-bold tabular-nums",
+                        pos ? "text-[#10b981]" : "text-[#ef4444]",
+                      )}
+                    >
+                      {pos ? "+" : ""}
+                      {ret.toFixed(2)}%
                     </td>
-                    <td className={cn("px-4 py-3 tabular-nums", pos ? "text-[#10b981]" : "text-[#ef4444]")}>
+                    <td
+                      className={cn(
+                        "px-4 py-3 tabular-nums",
+                        pos ? "text-[#10b981]" : "text-[#ef4444]",
+                      )}
+                    >
                       {pos ? "+" : ""}${pnl.toFixed(4)}
                     </td>
                     <td className="px-4 py-3 text-[#94a3b8]">{entry.tradeCount}</td>
                     <td className="px-4 py-3 text-[#94a3b8]">{entry.cycleCount}</td>
                     <td className="px-4 py-3">
-                      <span className={cn(
-                        "text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border",
-                        entry.status === "active"
-                          ? "text-[#10b981] border-[#10b981]/30 bg-[#10b981]/8"
-                          : entry.status === "halted"
-                          ? "text-[#ef4444] border-[#ef4444]/30 bg-[#ef4444]/8"
-                          : "text-[#334155] border-[#1a1c24]",
-                      )}>
+                      <span
+                        className={cn(
+                          "text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border",
+                          entry.status === "active"
+                            ? "text-[#10b981] border-[#10b981]/30 bg-[#10b981]/8"
+                            : entry.status === "halted"
+                              ? "text-[#ef4444] border-[#ef4444]/30 bg-[#ef4444]/8"
+                              : "text-[#334155] border-[#1a1c24]",
+                        )}
+                      >
                         {entry.status}
                       </span>
                     </td>
