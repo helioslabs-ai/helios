@@ -49,6 +49,13 @@ const AGENT_ROLES: Record<AgentName, { role: string; icon: string }> = {
   executor: { role: "Trade Engine", icon: "◆" },
 };
 
+const AGENT_ROLE_DESCRIPTIONS: Record<AgentName, string> = {
+  curator: "Coordinates cycles, settles x402 payments, and manages compounding.",
+  strategist: "Finds high-conviction trade and yield opportunities on X Layer.",
+  sentinel: "Applies risk checks to block unsafe opportunities before execution.",
+  executor: "Executes approved swaps and yield deposits onchain.",
+};
+
 const AGENT_ACTIVE: Partial<Record<SwarmState, AgentName>> = {
   STRATEGIST_SCAN: "strategist",
   SENTINEL_CHECK: "sentinel",
@@ -655,7 +662,7 @@ function AgentRow({
   return (
     <div
       className={cn(
-        "rounded-lg border bg-[#0A0C10] px-4 py-4 min-h-[84px] flex items-center gap-3 transition-all",
+        "rounded-lg border bg-[#0A0C10] px-4 py-4 min-h-[112px] flex items-start gap-3.5 transition-all",
         "border-[#1a1c24]",
         glowCls,
       )}
@@ -668,17 +675,22 @@ function AgentRow({
       >
         {icon}
       </span>
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 pr-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-semibold capitalize text-white">{name}</span>
-          <span className="text-[9px] font-mono text-[#64748b]">{role}</span>
+          <span className="text-sm font-mono font-semibold capitalize text-white leading-none">
+            {name}
+          </span>
+          <span className="text-[10px] font-mono text-[#64748b]">{role}</span>
         </div>
+        <p className="mt-2 text-[11px] font-mono text-[#94a3b8] leading-relaxed">
+          {AGENT_ROLE_DESCRIPTIONS[name]}
+        </p>
         {address ? (
           <a
             href={getOkLinkAddressUrl(address)}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[10px] font-mono text-[#334155] hover:text-[#FFA30F] transition-colors"
+            className="mt-2 inline-block text-[10px] font-mono text-[#475569] hover:text-[#FFA30F] transition-colors"
           >
             {truncateAddress(address)}
           </a>
@@ -688,7 +700,7 @@ function AgentRow({
       </div>
       <span
         className={cn(
-          "text-[9px] font-mono font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border shrink-0",
+          "text-[9px] font-mono font-bold uppercase tracking-widest px-2 py-1 rounded border shrink-0 mt-0.5",
           statusCls,
           isActive && !isHalted ? "animate-pulse-gold" : "",
         )}
