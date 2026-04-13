@@ -23,7 +23,7 @@ import { exitPosition } from "./executor.js";
 import { reScorePositions } from "./sentinel.js";
 
 const DATA_DIR = join(import.meta.dir, "../data");
-const API_URL = process.env.API_URL ?? "http://localhost:3001";
+const API_URL = `http://localhost:${process.env.PORT ?? "3001"}`;
 
 mkdirSync(DATA_DIR, { recursive: true });
 

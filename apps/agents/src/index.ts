@@ -1,7 +1,6 @@
 import { runCycle, startCycleLoop } from "./agents/curator.js";
 import { app } from "./app.js";
 import { buildAgentConfigs } from "./config.js";
-import { tripCircuitBreaker } from "./state.js";
 
 const PORT = Number(process.env.PORT) || 3001;
 const ENABLE_AGENTS = process.env.ENABLE_AGENTS === "true";
@@ -17,7 +16,7 @@ if (ENABLE_AGENTS) {
   // First cycle immediately on boot, then on interval
   runCycle(configs).catch((err) => {
     console.error("[Helios] Boot cycle failed:", err);
-    tripCircuitBreaker(err instanceof Error ? err.message : "Boot cycle error");
+    // Don't trip circuit breaker on boot — let the scheduled loop retry
   });
   startCycleLoop(configs, INTERVAL_MS);
 
@@ -27,4 +26,5 @@ if (ENABLE_AGENTS) {
 export default {
   port: PORT,
   fetch: app.fetch,
+  idleTimeout: 120,
 };
