@@ -5,7 +5,18 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { runCycle } from "../agents/curator.js";
 import { buildAgentConfigs } from "../config.js";
+import { resolveAgentWalletAddress } from "../constants/agent-wallets.js";
 import { getDb } from "../db/client.js";
+import {
+  aggregateEconomyFromDb,
+  buildTransactionRowsFromDb,
+  countCycleRows,
+  countEconomyEntryRows,
+  dbCycleToSummary,
+  fetchCyclesNewestFirst,
+  formatEconomyEntryContext,
+  type AgentTxRow,
+} from "../db/historical-queries.js";
 import type { HeliosRegistryInsert } from "../db/schema/index.js";
 import { heliosRegistry } from "../db/schema/index.js";
 import {
@@ -16,7 +27,7 @@ import {
   tripCircuitBreaker,
 } from "../state.js";
 import { okxFetch } from "../tools/okx-client.js";
-import type { AgentName, CycleSummary, EconomyEntry, Position } from "../types.js";
+import type { AgentName, CycleAction, CycleSummary, EconomyEntry, Position } from "../types.js";
 
 const DATA_DIR = join(import.meta.dir, "../data");
 
@@ -39,21 +50,138 @@ function readJson<T>(filename: string, fallback: T): T {
   }
 }
 
+let warnedMissingDb = false;
+
+function warnMissingDb(context: string) {
+  if (warnedMissingDb) return;
+  warnedMissingDb = true;
+  console.warn(
+    `[Helios] ${context}: DATABASE_URL not set or DB unreachable — using local JSON fallbacks where available. Leaderboard (/api/registry) needs Supabase.`,
+  );
+}
+
+function realizedPnlFromPositions(): string {
+  const positions = readJson<Position[]>("positions.json", []);
+  return positions
+    .filter((p) => p.status === "closed" && p.pnlPct !== undefined)
+    .reduce((acc, p) => acc + (Number(p.sizeUsdc) * (p.pnlPct ?? 0)) / 100, 0)
+    .toFixed(4);
+}
+
+function economyFromFiles() {
+  const entries = readJsonl<EconomyEntry>("economy_log.jsonl");
+  const cycles = readJsonl<CycleSummary>("cycle_log.jsonl");
+  const totalX402PaidUsdc = entries
+    .reduce((acc, e) => acc + Number.parseFloat(e.amount ?? "0"), 0)
+    .toFixed(4);
+
+  const perAgent: Record<AgentName, string> = {
+    curator: "0",
+    strategist: "0",
+    sentinel: "0",
+    executor: "0",
+  };
+  for (const entry of entries) {
+    const prev = Number.parseFloat(perAgent[entry.to] ?? "0");
+    perAgent[entry.to] = (prev + Number.parseFloat(entry.amount ?? "0")).toFixed(4);
+  }
+
+  const economyEntriesCount = entries.length;
+
+  return {
+    totalCycles: cycles.length,
+    totalX402PaidUsdc,
+    totalOnchainTxns: economyEntriesCount,
+    economyEntriesCount,
+    totalX402Txns: entries.filter((e) => e.txHash).length,
+    perAgent,
+  };
+}
+
+function buildTransactionsFromFiles(): AgentTxRow[] {
+  const cycleRows = readJsonl<CycleSummary>("cycle_log.jsonl");
+  const entryRows = readJsonl<EconomyEntry>("economy_log.jsonl");
+  const cycleById = new Map(cycleRows.map((c) => [c.id, c]));
+  const txRows: AgentTxRow[] = [];
+  const rowKey = (txHash: string, cycleId: string) => `${txHash}::${cycleId}`;
+
+  for (const e of entryRows) {
+    const cycle = cycleById.get(e.cycleId);
+    txRows.push({
+      txHash:
+        e.txHash && e.txHash.startsWith("0x")
+          ? e.txHash
+          : `econ:${e.cycleId}:${e.ts}:${e.to}`,
+      ts: e.ts,
+      cycleId: e.cycleId,
+      action: (cycle?.action ?? "hold") as CycleAction,
+      kind: "x402_payment",
+      agent: e.to,
+      context: formatEconomyEntryContext({
+        to: e.to,
+        serviceUrl: e.serviceUrl,
+        isNoAlpha: e.isNoAlpha,
+      }),
+      reasoning: cycle?.reasoning ?? "",
+    });
+  }
+
+  const have = new Set(
+    txRows.filter((r) => r.txHash.startsWith("0x")).map((r) => rowKey(r.txHash, r.cycleId)),
+  );
+
+  for (const c of cycleRows) {
+    const economyHashes = new Set(
+      entryRows.filter((e) => e.cycleId === c.id && e.txHash).map((e) => e.txHash as string),
+    );
+
+    for (const tx of c.transactions ?? []) {
+      const k = rowKey(tx.txHash, c.id);
+      if (have.has(k)) continue;
+      have.add(k);
+      txRows.push({
+        txHash: tx.txHash,
+        ts: c.ts,
+        cycleId: c.id,
+        action: c.action,
+        kind: tx.kind,
+        agent: tx.agent,
+        context: tx.context,
+        reasoning: c.reasoning,
+      });
+    }
+
+    for (const txHash of c.txHashes ?? []) {
+      if (!txHash || economyHashes.has(txHash)) continue;
+      const k = rowKey(txHash, c.id);
+      if (have.has(k)) continue;
+      have.add(k);
+      const kind: AgentTxRow["kind"] =
+        c.action === "buy" ? "trade" : c.action === "yield_park" ? "yield_deposit" : "trade";
+      txRows.push({
+        txHash,
+        ts: c.ts,
+        cycleId: c.id,
+        action: c.action,
+        kind,
+        agent: "executor",
+        context:
+          kind === "yield_deposit"
+            ? "Onchain yield / execution transaction"
+            : "Onchain execution transaction",
+        reasoning: c.reasoning,
+      });
+    }
+  }
+
+  txRows.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+  return txRows;
+}
+
 const api = new Hono();
 
 interface AgentBalanceRow {
   totalValue?: string;
-}
-
-interface AgentTxRow {
-  txHash: string;
-  ts: string;
-  cycleId: string;
-  action: string;
-  kind: string;
-  agent: AgentName;
-  context: string;
-  reasoning: string;
 }
 
 async function getWalletUsdValue(address: string): Promise<string> {
@@ -72,52 +200,53 @@ async function getWalletUsdValue(address: string): Promise<string> {
   }
 }
 
-api.get("/status", (c) => {
+api.get("/status", async (c) => {
   const state = getState();
-  return c.json(state);
+  const db = getDb();
+  if (db) {
+    try {
+      const dbCycleCount = await countCycleRows(db);
+      return c.json({
+        ...state,
+        totalCycles: Math.max(state.totalCycles, dbCycleCount),
+      });
+    } catch (err) {
+      console.warn("[API] /status cycle count:", err);
+    }
+  } else {
+    warnMissingDb("/status");
+  }
+
+  const cycles = readJsonl<CycleSummary>("cycle_log.jsonl");
+  return c.json({
+    ...state,
+    totalCycles: Math.max(state.totalCycles, cycles.length),
+  });
 });
 
-api.get("/economy", (c) => {
-  const entries = readJsonl<EconomyEntry>("economy_log.jsonl");
-  const cycles = readJsonl<CycleSummary>("cycle_log.jsonl");
-  const totalX402PaidUsdc = entries
-    .reduce((acc, e) => acc + Number.parseFloat(e.amount ?? "0"), 0)
-    .toFixed(4);
-
-  const perAgent: Record<AgentName, string> = {
-    curator: "0",
-    strategist: "0",
-    sentinel: "0",
-    executor: "0",
-  };
-  for (const entry of entries) {
-    const prev = Number.parseFloat(perAgent[entry.to] ?? "0");
-    perAgent[entry.to] = (prev + Number.parseFloat(entry.amount ?? "0")).toFixed(4);
+api.get("/economy", async (c) => {
+  const realizedPnlUsdc = realizedPnlFromPositions();
+  const db = getDb();
+  if (db) {
+    try {
+      const [cycleCount, agg] = await Promise.all([countCycleRows(db), aggregateEconomyFromDb(db)]);
+      return c.json({
+        totalCycles: cycleCount,
+        totalX402PaidUsdc: agg.totalX402PaidUsdc,
+        totalOnchainTxns: agg.economyEntriesCount,
+        economyEntriesCount: agg.economyEntriesCount,
+        totalX402Txns: agg.totalX402Txns,
+        perAgent: agg.perAgent,
+        realizedPnlUsdc,
+      });
+    } catch (err) {
+      console.warn("[API] /economy DB read failed, using files:", err);
+    }
+  } else {
+    warnMissingDb("/economy");
   }
 
-  const uniqueTxHashes = new Set<string>();
-  for (const entry of entries) {
-    if (entry.txHash) uniqueTxHashes.add(entry.txHash);
-  }
-  for (const cycle of cycles) {
-    for (const hash of cycle.txHashes) uniqueTxHashes.add(hash);
-    for (const tx of cycle.transactions ?? []) uniqueTxHashes.add(tx.txHash);
-  }
-
-  const positions = readJson<Position[]>("positions.json", []);
-  const realizedPnlUsdc = positions
-    .filter((p) => p.status === "closed" && p.pnlPct !== undefined)
-    .reduce((acc, p) => acc + (Number(p.sizeUsdc) * (p.pnlPct ?? 0)) / 100, 0)
-    .toFixed(4);
-
-  return c.json({
-    totalCycles: getState().totalCycles,
-    totalX402PaidUsdc,
-    totalOnchainTxns: uniqueTxHashes.size,
-    totalX402Txns: entries.filter((e) => e.txHash).length,
-    perAgent,
-    realizedPnlUsdc,
-  });
+  return c.json({ ...economyFromFiles(), realizedPnlUsdc });
 });
 
 api.get("/positions", (c) => {
@@ -130,17 +259,35 @@ api.get("/positions", (c) => {
   });
 });
 
-api.get("/logs", (c) => {
+api.get("/logs", async (c) => {
   const n = Math.min(Number(c.req.query("n") ?? "100"), 2000);
-  const cycles = readJsonl<CycleSummary>("cycle_log.jsonl");
-  return c.json({ cycles: cycles.slice(-n), count: cycles.length });
+  const db = getDb();
+  if (db) {
+    try {
+      const total = await countCycleRows(db);
+      const rows = await fetchCyclesNewestFirst(db, n);
+      const cycles = rows.map(dbCycleToSummary);
+      return c.json({ cycles, count: total });
+    } catch (err) {
+      console.warn("[API] /logs DB failed:", err);
+    }
+  } else {
+    warnMissingDb("/logs");
+  }
+
+  const all = readJsonl<CycleSummary>("cycle_log.jsonl");
+  const count = all.length;
+  const cycles = [...all]
+    .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+    .slice(0, n);
+  return c.json({ cycles, count });
 });
 
 api.get("/agents", async (c) => {
   const agentNames: AgentName[] = ["curator", "strategist", "sentinel", "executor"];
   const agents = await Promise.all(
     agentNames.map(async (name) => {
-      const address = process.env[`${name.toUpperCase()}_WALLET_ADDRESS`] ?? "";
+      const address = resolveAgentWalletAddress(name);
       const totalValueUsd = await getWalletUsdValue(address);
       return {
         name,
@@ -153,43 +300,33 @@ api.get("/agents", async (c) => {
   return c.json({ agents });
 });
 
-api.get("/transactions", (c) => {
-  const cycles = readJsonl<CycleSummary>("cycle_log.jsonl");
-  const txRows: AgentTxRow[] = [];
-
-  for (const cycle of cycles) {
-    const seen = new Set<string>();
-    for (const tx of cycle.transactions ?? []) {
-      txRows.push({
-        txHash: tx.txHash,
-        ts: cycle.ts,
-        cycleId: cycle.id,
-        action: cycle.action,
-        kind: tx.kind,
-        agent: tx.agent,
-        context: tx.context,
-        reasoning: cycle.reasoning,
+api.get("/transactions", async (c) => {
+  const db = getDb();
+  if (db) {
+    try {
+      const [rows, econCount] = await Promise.all([
+        buildTransactionRowsFromDb(db, 800, 3000),
+        countEconomyEntryRows(db),
+      ]);
+      return c.json({
+        transactions: rows,
+        count: rows.length,
+        economyEntriesCount: econCount,
       });
-      seen.add(tx.txHash);
+    } catch (err) {
+      console.warn("[API] /transactions DB failed:", err);
     }
-
-    for (const txHash of cycle.txHashes) {
-      if (seen.has(txHash)) continue;
-      txRows.push({
-        txHash,
-        ts: cycle.ts,
-        cycleId: cycle.id,
-        action: cycle.action,
-        kind: "trade",
-        agent: "executor",
-        context: "Execution transaction recorded in cycle summary",
-        reasoning: cycle.reasoning,
-      });
-    }
+  } else {
+    warnMissingDb("/transactions");
   }
 
-  txRows.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
-  return c.json({ transactions: txRows, count: txRows.length });
+  const entries = readJsonl<EconomyEntry>("economy_log.jsonl");
+  const txRows = buildTransactionsFromFiles();
+  return c.json({
+    transactions: txRows,
+    count: txRows.length,
+    economyEntriesCount: entries.length,
+  });
 });
 
 api.post("/cycle", async (c) => {
@@ -210,7 +347,10 @@ api.post("/cycle", async (c) => {
 
 api.get("/registry", async (c) => {
   const db = getDb();
-  if (!db) return c.json({ swarms: [] });
+  if (!db) {
+    warnMissingDb("/registry");
+    return c.json({ swarms: [] });
+  }
   const rows = await db.select().from(heliosRegistry).orderBy(desc(heliosRegistry.returnPct));
   const swarms = rows.map((r) => ({
     id: r.id,
@@ -297,35 +437,34 @@ api.get("/sse", (c) => {
   return streamSSE(c, async (stream) => {
     while (true) {
       const state = getState();
-      const cycles = readJsonl<CycleSummary>("cycle_log.jsonl").slice(-5);
-      const recentTransactions = readJsonl<CycleSummary>("cycle_log.jsonl")
-        .slice(-20)
-        .flatMap((cycle) =>
-          (
-            cycle.transactions ??
-            cycle.txHashes.map((txHash) => ({
-              txHash,
-              kind: "trade",
-              agent: "executor",
-              context: "Execution transaction recorded in cycle summary",
-            }))
-          ).map((tx) => ({
-            txHash: tx.txHash,
-            ts: cycle.ts,
-            cycleId: cycle.id,
-            action: cycle.action,
-            kind: tx.kind,
-            agent: tx.agent,
-            context: tx.context,
-            reasoning: cycle.reasoning,
-          })),
-        )
-        .slice(-30);
       const positions = readJson<Position[]>("positions.json", []);
+      const db = getDb();
+
+      let recentCycles: CycleSummary[] = [];
+      let recentTransactions: AgentTxRow[] = [];
+
+      if (db) {
+        try {
+          const newest5 = await fetchCyclesNewestFirst(db, 5);
+          recentCycles = [...newest5].reverse().map(dbCycleToSummary);
+          recentTransactions = (await buildTransactionRowsFromDb(db, 20, 400)).slice(0, 40);
+        } catch (err) {
+          console.warn("[API] SSE DB failed:", err);
+        }
+      }
+
+      if (recentCycles.length === 0) {
+        const all = readJsonl<CycleSummary>("cycle_log.jsonl");
+        recentCycles = all.slice(-5);
+      }
+      if (recentTransactions.length === 0) {
+        recentTransactions = buildTransactionsFromFiles().slice(0, 40);
+      }
+
       await stream.writeSSE({
         data: JSON.stringify({
           state,
-          recentCycles: cycles,
+          recentCycles,
           recentTransactions,
           openPositions: positions.filter((p) => p.status === "open"),
         }),

@@ -16,6 +16,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { resolveDashboardAgentAddress } from "@/lib/agent-addresses";
 import { getOkLinkAddressUrl, getOkLinkTxUrl, getSseUrl } from "@/lib/api";
 import { mergeCycles, mergeTransactions } from "@/lib/dashboard-merge";
 import type {
@@ -91,12 +92,20 @@ function formatTxKindLabel(kind: TransactionRow["kind"]): string {
   return kind.replace(/_/g, " ");
 }
 
-const TX_KIND_COLOR: Record<TransactionRow["kind"], string> = {
-  x402_payment: "text-[#FFA30F]",
-  trade: "text-[#3b82f6]",
-  yield_deposit: "text-[#10b981]",
-  trade_exit: "text-[#f472b6]",
-};
+/** x402 = amber, trades / yield / exits = green, other execution = blue */
+function txRowTypeClass(tx: TransactionRow): string {
+  if (tx.kind === "x402_payment") return "text-[#EAB308]";
+  if (tx.kind === "yield_deposit" || tx.kind === "trade_exit") return "text-[#10b981]";
+  if (tx.kind === "trade") {
+    if (tx.action === "no_alpha" || tx.action === "hold") return "text-[#3b82f6]";
+    return "text-[#10b981]";
+  }
+  return "text-[#3b82f6]";
+}
+
+function isExplorableTxHash(hash: string): boolean {
+  return /^0x[a-fA-F0-9]{64}$/.test(hash);
+}
 
 function formatNextCycle(lastCycleAt: string | null): string {
   if (!lastCycleAt) return "Pending first cycle";
@@ -142,9 +151,12 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
   const portfolioUsd = agents.reduce((acc, agent) => acc + Number(agent.totalValueUsd ?? "0"), 0);
   const realizedPnl = Number(economy.realizedPnlUsdc ?? "0");
 
+  const txnTabCount =
+    economy.economyEntriesCount ?? economy.totalOnchainTxns ?? economy.totalX402Txns ?? 0;
+
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
-    { id: "transactions", label: `Transactions · ${transactions.length}` },
+    { id: "transactions", label: `Transactions · ${txnTabCount}` },
     { id: "portfolio", label: "Portfolio" },
     { id: "economy", label: "Economy" },
     { id: "leaderboard", label: "Leaderboard" },
@@ -241,7 +253,11 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
             <StatCell label="Total Cycles" value={economy.totalCycles.toString()} />
             <StatCell
               label="Onchain Txns"
-              value={(economy.totalOnchainTxns ?? economy.totalX402Txns).toString()}
+              value={(
+                economy.economyEntriesCount ??
+                economy.totalOnchainTxns ??
+                economy.totalX402Txns
+              ).toString()}
               sub="X Layer"
             />
             <StatCell label="x402 Paid" value={`$${economy.totalX402PaidUsdc}`} sub="USDG" accent />
@@ -485,7 +501,7 @@ function OverviewTab({
               <AgentRow
                 key={name}
                 name={name}
-                address={agent?.address ?? ""}
+                address={resolveDashboardAgentAddress(name, agent?.address)}
                 isActive={isActive}
                 isHalted={isHalted}
               />
@@ -673,7 +689,7 @@ function AgentRow({
   return (
     <div
       className={cn(
-        "rounded-lg border bg-[#0A0C10] px-4 py-4 min-h-[112px] flex items-start gap-3.5 transition-all",
+        "rounded-lg border bg-[#0A0C10] px-4 py-5 min-h-[118px] flex items-start gap-4 transition-all",
         "border-[#1a1c24]",
         glowCls,
       )}
@@ -693,21 +709,17 @@ function AgentRow({
           </span>
           <span className="text-[10px] font-mono text-[#64748b]">{role}</span>
         </div>
-        <p className="mt-2 text-[11px] font-mono text-[#94a3b8] leading-relaxed">
+        <p className="mt-2.5 text-[11px] font-mono text-[#94a3b8] leading-relaxed">
           {AGENT_ROLE_DESCRIPTIONS[name]}
         </p>
-        {address ? (
-          <a
-            href={getOkLinkAddressUrl(address)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-2 inline-block text-[10px] font-mono text-[#475569] hover:text-[#FFA30F] transition-colors"
-          >
-            {truncateAddress(address)}
-          </a>
-        ) : (
-          <span className="text-[10px] font-mono text-[#1a1c24]">no address</span>
-        )}
+        <a
+          href={getOkLinkAddressUrl(address)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2.5 inline-block text-[10px] font-mono text-[#475569] hover:text-[#FFA30F] transition-colors"
+        >
+          {truncateAddress(address)}
+        </a>
       </div>
       <span
         className={cn(
@@ -781,12 +793,7 @@ function OverviewTransactionFeed({
                   {formatAbsoluteTime(tx.ts)}
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap w-[8.5rem]">
-                  <span
-                    className={cn(
-                      "font-semibold uppercase tracking-wide",
-                      TX_KIND_COLOR[tx.kind] ?? "text-[#94a3b8]",
-                    )}
-                  >
+                  <span className={cn("font-semibold uppercase tracking-wide", txRowTypeClass(tx))}>
                     {formatTxKindLabel(tx.kind)}
                   </span>
                 </td>
@@ -799,15 +806,21 @@ function OverviewTransactionFeed({
                   </p>
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap w-[7.5rem]">
-                  <a
-                    href={getOkLinkTxUrl(tx.txHash)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#3b82f6] hover:text-[#FFA30F] transition-colors font-mono"
-                    title={tx.txHash}
-                  >
-                    {tx.txHash.slice(0, 6)}…{tx.txHash.slice(-4)}
-                  </a>
+                  {isExplorableTxHash(tx.txHash) ? (
+                    <a
+                      href={getOkLinkTxUrl(tx.txHash)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#3b82f6] hover:text-[#FFA30F] transition-colors font-mono"
+                      title={tx.txHash}
+                    >
+                      {tx.txHash.slice(0, 6)}…{tx.txHash.slice(-4)}
+                    </a>
+                  ) : (
+                    <span className="text-[#475569] font-mono" title={tx.txHash}>
+                      —
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}
@@ -1009,12 +1022,7 @@ function TransactionsTab({ transactions }: { transactions: TransactionRow[] }) {
                       })}
                     </td>
                     <td className="px-4 py-2.5">
-                      <span
-                        className={cn(
-                          "font-semibold uppercase",
-                          TX_KIND_COLOR[tx.kind] ?? "text-[#94a3b8]",
-                        )}
-                      >
+                      <span className={cn("font-semibold uppercase", txRowTypeClass(tx))}>
                         {formatTxKindLabel(tx.kind)}
                       </span>
                     </td>
@@ -1024,14 +1032,18 @@ function TransactionsTab({ transactions }: { transactions: TransactionRow[] }) {
                       {tx.reasoning}
                     </td>
                     <td className="px-4 py-2.5">
-                      <a
-                        href={getOkLinkTxUrl(tx.txHash)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#3b82f6] hover:text-[#FFA30F] transition-colors"
-                      >
-                        {tx.txHash.slice(0, 8)}…
-                      </a>
+                      {isExplorableTxHash(tx.txHash) ? (
+                        <a
+                          href={getOkLinkTxUrl(tx.txHash)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#3b82f6] hover:text-[#FFA30F] transition-colors"
+                        >
+                          {tx.txHash.slice(0, 8)}…
+                        </a>
+                      ) : (
+                        <span className="text-[#475569]">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-[#334155]">{tx.cycleId.slice(0, 8)}…</td>
                   </tr>

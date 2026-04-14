@@ -1,3 +1,4 @@
+import { resolveDashboardAgentAddress } from "@/lib/agent-addresses";
 import { getOkLinkAddressUrl } from "@/lib/api";
 import type { AgentInfo, SwarmState } from "@/lib/types";
 import { cn, truncateAddress } from "@/lib/utils";
@@ -59,12 +60,13 @@ function getAgentStatus(
 
 export function AgentCard({ agent, swarmState, isHalted }: Props) {
   const status = getAgentStatus(agent.name, swarmState, isHalted);
-  const addressUrl = agent.address ? getOkLinkAddressUrl(agent.address) : "#";
+  const address = resolveDashboardAgentAddress(agent.name, agent.address);
+  const addressUrl = getOkLinkAddressUrl(address);
 
   return (
     <div
       className={cn(
-        "rounded-lg border bg-surface bg-grid p-4 flex flex-col gap-3 transition-all",
+        "rounded-lg border bg-surface bg-grid p-5 flex flex-col gap-3.5 transition-all",
         "border-border-dim hover:border-border-bright",
         status.label === "ACTIVE" && "shadow-gold-glow border-gold/30",
         status.label === "HALTED" && "shadow-red-glow border-red/30",
@@ -98,19 +100,15 @@ export function AgentCard({ agent, swarmState, isHalted }: Props) {
         <span className="font-mono text-[11px] leading-relaxed text-text-muted">
           {AGENT_DESCRIPTIONS[agent.name]}
         </span>
-        {agent.address ? (
-          <a
-            href={addressUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-mono text-xs text-text-muted hover:text-gold transition-colors"
-            title={agent.address}
-          >
-            {truncateAddress(agent.address)}
-          </a>
-        ) : (
-          <span className="font-mono text-xs text-text-dim">no address</span>
-        )}
+        <a
+          href={addressUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-mono text-xs text-text-muted hover:text-gold transition-colors"
+          title={address}
+        >
+          {truncateAddress(address)}
+        </a>
       </div>
     </div>
   );

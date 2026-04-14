@@ -49,6 +49,7 @@ const DEFAULT_ECONOMY: EconomyData = {
   totalCycles: 0,
   totalX402PaidUsdc: "0.0000",
   totalOnchainTxns: 0,
+  economyEntriesCount: 0,
   totalX402Txns: 0,
   perAgent: { curator: "0", strategist: "0", sentinel: "0", executor: "0" },
   realizedPnlUsdc: "0.0000",

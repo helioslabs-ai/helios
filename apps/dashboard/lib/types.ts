@@ -39,6 +39,8 @@ export interface EconomyData {
   totalCycles: number;
   totalX402PaidUsdc: string;
   totalOnchainTxns?: number;
+  /** Row count in economy_entries (x402 ledger); drives Transactions tab badge + onchain stat. */
+  economyEntriesCount?: number;
   totalX402Txns: number;
   perAgent: Record<AgentName, string>;
   realizedPnlUsdc?: string;
