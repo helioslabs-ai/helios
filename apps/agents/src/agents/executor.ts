@@ -85,7 +85,12 @@ export async function runUnconditionalYieldParkDeposit(
 
   const balances = await getWalletTokenBalances(accountId, address).catch((err) => {
     console.error("[runUnconditionalYieldParkDeposit] getWalletTokenBalances failed:", err);
-    throw err;
+    return {
+      accountId,
+      address,
+      balanceUsdc: "0",
+      balanceUsdg: "0",
+    };
   });
 
   const rawUsdc = parseFloat(balances.balanceUsdc) || 0;

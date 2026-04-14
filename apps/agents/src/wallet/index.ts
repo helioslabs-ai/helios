@@ -1,11 +1,11 @@
 import crypto from "node:crypto";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { Aead, CipherSuite, Kdf, Kem } from "hpke-js";
+import { CHAIN_INDEX, okxFetch } from "../tools/okx-client.js";
 import type { AgentName } from "../types.js";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const WAAS_BASE = "https://www.okx.com/api/v5/waas";
 const TEE_BASE = "https://web3.okx.com";
 const WALLET_PREFIX = "/priapi/v5/wallet/agentic";
 
@@ -586,35 +586,58 @@ export type WalletTokenBalances = {
   balanceUsdg: string;
 };
 
-async function fetchTokenAssetsRaw(
-  accountId: string,
-): Promise<Array<{ tokenSymbol: string; balance: string }>> {
-  const ts = new Date().toISOString();
-  const path = `/api/v5/waas/asset/token-assets?accountId=${accountId}&chainIndex=196`;
-  const secretKey = process.env.OKX_SECRET_KEY ?? "";
-  const sign = crypto.createHmac("sha256", secretKey).update(`${ts}GET${path}`).digest("base64");
-
-  const res = await fetch(`${WAAS_BASE}/asset/token-assets?accountId=${accountId}&chainIndex=196`, {
-    headers: {
-      "Content-Type": "application/json",
-      "OK-ACCESS-KEY": process.env.OKX_API_KEY ?? "",
-      "OK-ACCESS-SIGN": sign,
-      "OK-ACCESS-TIMESTAMP": ts,
-      "OK-ACCESS-PASSPHRASE": process.env.OKX_PASSPHRASE ?? "",
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Wallet balance fetch failed: ${res.status}`);
+/**
+ * OnchainOS portfolio / okx-wallet-portfolio path: DEX balance by EVM address on X Layer.
+ * (WaaS v5 `/waas/asset/token-assets` returns 404 for many keys — not used here.)
+ * See: `.resources/onchainos-skills/skills/okx-wallet-portfolio` — same API as `okxWalletBalances` tool.
+ */
+function normalizeDexBalancePayload(
+  json: unknown,
+): Array<{ tokenSymbol: string; balance: string }> {
+  const out: Array<{ tokenSymbol: string; balance: string }> = [];
+  if (!json || typeof json !== "object") return out;
+  const root = json as Record<string, unknown>;
+  const raw = root.data;
+  let rows: unknown[] = [];
+  if (Array.isArray(raw)) {
+    rows = raw;
+  } else if (raw && typeof raw === "object") {
+    const ta = (raw as Record<string, unknown>).tokenAssets;
+    if (Array.isArray(ta)) rows = ta;
   }
+  for (const r of rows) {
+    if (!r || typeof r !== "object") continue;
+    const o = r as Record<string, unknown>;
+    const sym = o.symbol ?? o.tokenSymbol;
+    const bal = o.balance;
+    if (sym != null && bal != null) {
+      out.push({ tokenSymbol: String(sym), balance: String(bal) });
+    }
+  }
+  return out;
+}
 
-  const json = (await res.json()) as { data: Array<{ tokenSymbol: string; balance: string }> };
-  return json.data ?? [];
+async function fetchTokenBalancesByEvmAddress(
+  evmAddress: string,
+): Promise<Array<{ tokenSymbol: string; balance: string }>> {
+  if (!evmAddress?.startsWith("0x")) {
+    console.warn("[wallet] balance: invalid evmAddress, skipping DEX fetch");
+    return [];
+  }
+  try {
+    const json = await okxFetch<unknown>("/api/v6/dex/balance/all-token-balances-by-address", {
+      params: { address: evmAddress.toLowerCase(), chains: CHAIN_INDEX },
+    });
+    return normalizeDexBalancePayload(json);
+  } catch (e) {
+    console.error("[wallet] DEX balance fetch failed:", e);
+    return [];
+  }
 }
 
 export async function getWalletBalance(accountId: string, address: string): Promise<WalletBalance> {
-  const data = await fetchTokenAssetsRaw(accountId);
-  const usdc = data.find((t) => t.tokenSymbol === "USDC");
+  const data = await fetchTokenBalancesByEvmAddress(address);
+  const usdc = data.find((t) => (t.tokenSymbol ?? "").toUpperCase() === "USDC");
   return { accountId, address, balanceUsdc: usdc?.balance ?? "0" };
 }
 
@@ -623,9 +646,9 @@ export async function getWalletTokenBalances(
   accountId: string,
   address: string,
 ): Promise<WalletTokenBalances> {
-  const data = await fetchTokenAssetsRaw(accountId);
-  const usdc = data.find((t) => t.tokenSymbol === "USDC");
-  const usdg = data.find((t) => t.tokenSymbol === "USDG");
+  const data = await fetchTokenBalancesByEvmAddress(address);
+  const usdc = data.find((t) => (t.tokenSymbol ?? "").toUpperCase() === "USDC");
+  const usdg = data.find((t) => (t.tokenSymbol ?? "").toUpperCase() === "USDG");
   return {
     accountId,
     address,
