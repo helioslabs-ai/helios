@@ -37,6 +37,7 @@
 - [x] **A9 — maxTradeSize unused** — fixed: included in instruction, prompt updated
 - [x] **A10 — Session loss not enforced** — fixed: `checkSessionLoss()` called after each cycle
 - [x] **A11 — shouldTimeStop/shouldTakeProfit not called** — fixed: checked in reScorePositions before LLM
+- [x] **A11b — Memecoin trade targets blocked by Sentinel** — `isXLayerSafeTradeContract` allowlist (USDC, USDG, WOKB, WETH, WBTC, OKB); strategist normalizes trench picks (e.g. XDOG) to WOKB before `/sentinel/assess`.
 
 ### Swap + DeFi execution architecture (critical)
 
