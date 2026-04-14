@@ -678,12 +678,12 @@ function AgentRow({
   isHalted: boolean;
 }) {
   const { role, icon } = AGENT_ROLES[name];
-  const statusLabel = isHalted ? "HALTED" : isActive ? "ACTIVE" : "IDLE";
+  const statusLabel = isHalted ? "HALTED" : "ACTIVE";
   const statusCls = isHalted
     ? "text-[#ef4444] border-[#ef4444]/30 bg-[#ef4444]/8"
     : isActive
       ? "text-[#FFA30F] border-[#FFA30F]/30 bg-[#FFA30F]/8"
-      : "text-[#334155] border-[#1a1c24] bg-transparent";
+      : "text-[#10b981] border-[#10b981]/30 bg-[#10b981]/8";
   const glowCls = isActive && !isHalted ? "shadow-gold-glow border-[#FFA30F]/20" : "";
 
   return (
@@ -697,7 +697,7 @@ function AgentRow({
       <span
         className={cn(
           "text-base shrink-0",
-          isHalted ? "text-[#ef4444]" : isActive ? "text-[#FFA30F]" : "text-[#334155]",
+          isHalted ? "text-[#ef4444]" : isActive ? "text-[#FFA30F]" : "text-[#10b981]",
         )}
       >
         {icon}

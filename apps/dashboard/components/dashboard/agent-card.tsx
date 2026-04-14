@@ -55,7 +55,7 @@ function getAgentStatus(
     };
   if (swarmState !== "IDLE" && agentName === "curator")
     return { label: "RUNNING", color: "text-gold", dotColor: "bg-gold animate-pulse-gold" };
-  return { label: "IDLE", color: "text-text-muted", dotColor: "bg-text-muted" };
+  return { label: "ACTIVE", color: "text-emerald", dotColor: "bg-emerald" };
 }
 
 export function AgentCard({ agent, swarmState, isHalted }: Props) {
@@ -83,7 +83,9 @@ export function AgentCard({ agent, swarmState, isHalted }: Props) {
           className={cn(
             "text-[10px] font-mono font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded border",
             status.label === "ACTIVE"
-              ? "text-gold border-gold/40 bg-gold/10"
+              ? status.color === "text-emerald"
+                ? "text-emerald border-emerald/40 bg-emerald/10"
+                : "text-gold border-gold/40 bg-gold/10"
               : status.label === "HALTED"
                 ? "text-red border-red/40 bg-red/10"
                 : "text-text-muted border-border-dim bg-transparent",

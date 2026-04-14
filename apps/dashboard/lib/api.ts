@@ -9,7 +9,15 @@ import type {
   TransactionRow,
 } from "./types";
 
-const SERVER_API = process.env.API_URL ?? "http://localhost:3001";
+function getServerApiBase(): string {
+  return (
+    process.env.API_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3001")
+  );
+}
+
+const SERVER_API = getServerApiBase();
 
 export function getSseUrl(): string {
   return `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}/api/sse`;
