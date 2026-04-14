@@ -1,8 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getCycleUrl, getSseUrl } from "@/lib/api";
-import type { CycleSummary, DashboardData, SsePayload, SwarmState, SwarmStatus } from "@/lib/types";
+import { getOkLinkTxUrl, getSseUrl } from "@/lib/api";
+import { mergeCycles, mergeTransactions } from "@/lib/dashboard-merge";
+import type {
+  AgentName,
+  CycleSummary,
+  DashboardData,
+  SsePayload,
+  SwarmState,
+  SwarmStatus,
+  TransactionRow,
+} from "@/lib/types";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { AgentCard } from "./agent-card";
 import { CircuitBreakerBanner } from "./circuit-breaker-banner";
@@ -31,7 +40,6 @@ export function WarRoomClient({ initial }: Props) {
   const [data, setData] = useState<DashboardData>(initial);
   const [tab, setTab] = useState<Tab>("command");
   const [live, setLive] = useState(false);
-  const [triggeringCycle, setTriggeringCycle] = useState(false);
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -49,6 +57,7 @@ export function WarRoomClient({ initial }: Props) {
           openPositions: payload.openPositions,
         },
         cycles: mergeCycles(prev.cycles, payload.recentCycles),
+        transactions: mergeTransactions(prev.transactions, payload.recentTransactions ?? []),
       }));
     });
 
@@ -60,17 +69,11 @@ export function WarRoomClient({ initial }: Props) {
     };
   }, []);
 
-  async function triggerCycle() {
-    setTriggeringCycle(true);
-    try {
-      await fetch(getCycleUrl(), { method: "POST" });
-    } finally {
-      setTriggeringCycle(false);
-    }
-  }
-
-  const { status, agents, economy, cycles, positions } = data;
-  const lastCycle = cycles.length > 0 ? cycles[cycles.length - 1] : null;
+  const { status, agents, economy, cycles, positions, transactions } = data;
+  const lastCycle =
+    cycles.length > 0
+      ? [...cycles].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())[0]
+      : null;
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -120,7 +123,7 @@ export function WarRoomClient({ initial }: Props) {
         {(
           [
             ["command", "Command Center"],
-            ["transactions", "Transactions"],
+            ["transactions", `Transactions · ${transactions.length}`],
             ["portfolio", "Portfolio"],
             ["economy", "Economy"],
           ] as [Tab, string][]
@@ -150,22 +153,14 @@ export function WarRoomClient({ initial }: Props) {
             cycles={cycles}
             lastCycle={lastCycle}
             positions={positions}
-            onTriggerCycle={triggerCycle}
-            triggeringCycle={triggeringCycle}
           />
         )}
-        {tab === "transactions" && <TransactionsView cycles={cycles} />}
+        {tab === "transactions" && <TransactionsView cycles={cycles} transactions={transactions} />}
         {tab === "portfolio" && <PortfolioView positions={positions} />}
         {tab === "economy" && <EconomyView economy={economy} />}
       </div>
     </div>
   );
-}
-
-function mergeCycles(prev: CycleSummary[], incoming: CycleSummary[]): CycleSummary[] {
-  const ids = new Set(prev.map((c) => c.id));
-  const newOnes = incoming.filter((c) => !ids.has(c.id));
-  return [...prev, ...newOnes].slice(-50);
 }
 
 function CommandCenter({
@@ -174,16 +169,12 @@ function CommandCenter({
   cycles,
   lastCycle,
   positions,
-  onTriggerCycle,
-  triggeringCycle,
 }: {
   status: SwarmStatus;
   agents: DashboardData["agents"];
   cycles: CycleSummary[];
   lastCycle: CycleSummary | null;
   positions: DashboardData["positions"];
-  onTriggerCycle: () => void;
-  triggeringCycle: boolean;
 }) {
   return (
     <div className="flex h-full">
@@ -219,20 +210,6 @@ function CommandCenter({
             ))}
         </div>
 
-        <button
-          type="button"
-          onClick={onTriggerCycle}
-          disabled={triggeringCycle || status.circuitBreaker.halted}
-          className={cn(
-            "w-full py-3 rounded-lg border font-mono text-sm font-semibold uppercase tracking-widest transition-all",
-            "border-gold text-gold hover:bg-gold hover:text-[#07070E]",
-            "disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gold",
-            !triggeringCycle && !status.circuitBreaker.halted && "hover:shadow-gold-glow",
-          )}
-        >
-          {triggeringCycle ? "Triggering..." : "Run Cycle"}
-        </button>
-
         <div className="rounded-lg border border-border-dim bg-surface p-4">
           <div className="text-[10px] font-mono text-text-muted uppercase tracking-widest mb-2">
             Open Positions
@@ -248,68 +225,100 @@ function CommandCenter({
   );
 }
 
-function TransactionsView({ cycles }: { cycles: CycleSummary[] }) {
-  const txns = cycles
-    .flatMap((c) => c.txHashes.map((hash) => ({ hash, ts: c.ts, action: c.action, cycleId: c.id })))
-    .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+function legacyTxKind(action: CycleSummary["action"]): TransactionRow["kind"] {
+  if (action === "buy") return "trade";
+  if (action === "yield_park") return "yield_deposit";
+  return "x402_payment";
+}
+
+function TransactionsView({
+  cycles,
+  transactions,
+}: {
+  cycles: CycleSummary[];
+  transactions: TransactionRow[];
+}) {
+  const [showAll, setShowAll] = useState(false);
+
+  const rows: TransactionRow[] =
+    transactions.length > 0
+      ? [...transactions].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+      : cycles
+          .flatMap((c) =>
+            c.txHashes.map((hash) => ({
+              txHash: hash,
+              ts: c.ts,
+              cycleId: c.id,
+              action: c.action,
+              kind: legacyTxKind(c.action),
+              agent: "curator" as AgentName,
+              context: "",
+              reasoning: c.reasoning ?? "",
+            })),
+          )
+          .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+
+  const defaultLimit = 50;
+  const shown = showAll ? rows : rows.slice(0, defaultLimit);
+  const hasMore = rows.length > defaultLimit;
 
   return (
     <div className="p-6">
       <div className="text-xs font-mono text-text-muted uppercase tracking-widest mb-4">
-        All Transactions — {txns.length} total
+        All transactions — {rows.length} total
       </div>
-      {txns.length === 0 ? (
+      {rows.length === 0 ? (
         <div className="text-text-dim font-mono text-sm">No onchain transactions yet.</div>
       ) : (
-        <table className="w-full text-xs font-mono border border-border-dim rounded-lg overflow-hidden">
-          <thead>
-            <tr className="border-b border-border-dim bg-surface">
-              {["Tx Hash", "Action", "Timestamp", "Cycle"].map((h) => (
-                <th
-                  key={h}
-                  className="px-4 py-2 text-left text-text-dim uppercase tracking-widest font-normal"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {txns.map(({ hash, ts, action, cycleId }) => (
-              <tr
-                key={hash}
-                className="border-b border-border-dim/50 hover:bg-surface-raised transition-colors"
-              >
-                <td className="px-4 py-2.5">
-                  <a
-                    href={`https://www.oklink.com/xlayer/tx/${hash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue hover:text-gold transition-colors"
+        <>
+          <table className="w-full text-xs font-mono border border-border-dim rounded-lg overflow-hidden">
+            <thead>
+              <tr className="border-b border-border-dim bg-surface">
+                {["Time", "Type", "Reasoning", "TX hash"].map((h) => (
+                  <th
+                    key={h}
+                    className="px-4 py-2 text-left text-text-dim uppercase tracking-widest font-normal"
                   >
-                    {hash.slice(0, 10)}...{hash.slice(-6)}
-                  </a>
-                </td>
-                <td
-                  className={cn(
-                    "px-4 py-2.5 font-semibold",
-                    action === "buy"
-                      ? "text-gold"
-                      : action === "yield_park"
-                        ? "text-emerald"
-                        : "text-text-muted",
-                  )}
-                >
-                  {action.toUpperCase()}
-                </td>
-                <td className="px-4 py-2.5 text-text-dim tabular-nums">
-                  {new Date(ts).toLocaleString()}
-                </td>
-                <td className="px-4 py-2.5 text-text-dim">{cycleId.slice(0, 8)}…</td>
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {shown.map((tx) => (
+                <tr
+                  key={`${tx.txHash}-${tx.cycleId}-${tx.ts}`}
+                  className="border-b border-border-dim/50 hover:bg-surface-raised transition-colors align-top"
+                >
+                  <td className="px-4 py-2.5 text-text-dim tabular-nums whitespace-nowrap">
+                    {new Date(tx.ts).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-2.5 text-text-muted">{tx.kind.replace(/_/g, " ")}</td>
+                  <td className="px-4 py-2.5 text-text-muted max-w-md">{tx.reasoning}</td>
+                  <td className="px-4 py-2.5">
+                    <a
+                      href={getOkLinkTxUrl(tx.txHash)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue hover:text-gold transition-colors"
+                    >
+                      {tx.txHash.slice(0, 10)}...{tx.txHash.slice(-6)}
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {hasMore && (
+            <button
+              type="button"
+              onClick={() => setShowAll((v) => !v)}
+              className="mt-4 text-xs font-mono text-gold hover:text-gold/80 uppercase tracking-widest"
+            >
+              {showAll ? "Show fewer ↑" : `Show all ${rows.length} transactions ↓`}
+            </button>
+          )}
+        </>
       )}
     </div>
   );

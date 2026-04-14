@@ -36,14 +36,14 @@ const VERDICT_COLOR: Record<SentinelVerdict, string> = {
 };
 
 export function CycleFeed({ cycles }: Props) {
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on new cycle
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keep newest entries in view
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [cycles.length]);
 
-  const sorted = [...cycles].sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+  const sorted = [...cycles].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
 
   return (
     <div className="flex flex-col h-full">
@@ -60,13 +60,12 @@ export function CycleFeed({ cycles }: Props) {
             awaiting first cycle...
           </div>
         ) : (
-          <div className="flex flex-col">
+          <div ref={topRef} className="flex flex-col">
             {sorted.map((cycle, idx) => (
-              <CycleRow key={cycle.id} cycle={cycle} isLatest={idx === sorted.length - 1} />
+              <CycleRow key={cycle.id} cycle={cycle} isLatest={idx === 0} />
             ))}
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
     </div>
   );

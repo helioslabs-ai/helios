@@ -16,7 +16,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { getCycleUrl, getOkLinkAddressUrl, getOkLinkTxUrl, getSseUrl } from "@/lib/api";
+import { getOkLinkAddressUrl, getOkLinkTxUrl, getSseUrl } from "@/lib/api";
+import { mergeCycles, mergeTransactions } from "@/lib/dashboard-merge";
 import type {
   AgentName,
   CycleAction,
@@ -29,7 +30,13 @@ import type {
   TransactionRow,
   YieldPosition,
 } from "@/lib/types";
-import { cn, formatAbsoluteTime, formatRelativeTime, truncateAddress } from "@/lib/utils";
+import {
+  cn,
+  formatAbsoluteTime,
+  formatCycleActionLabel,
+  formatRelativeTime,
+  truncateAddress,
+} from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -80,17 +87,16 @@ const ACTION_DOT: Record<CycleAction, string> = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function mergeCycles(prev: CycleSummary[], incoming: CycleSummary[]): CycleSummary[] {
-  const ids = new Set(prev.map((c) => c.id));
-  const newOnes = incoming.filter((c) => !ids.has(c.id));
-  return [...prev, ...newOnes].slice(-100);
+function formatTxKindLabel(kind: TransactionRow["kind"]): string {
+  return kind.replace(/_/g, " ");
 }
 
-function mergeTransactions(prev: TransactionRow[], incoming: TransactionRow[]): TransactionRow[] {
-  const keys = new Set(prev.map((tx) => `${tx.txHash}-${tx.cycleId}`));
-  const newOnes = incoming.filter((tx) => !keys.has(`${tx.txHash}-${tx.cycleId}`));
-  return [...prev, ...newOnes].slice(-300);
-}
+const TX_KIND_COLOR: Record<TransactionRow["kind"], string> = {
+  x402_payment: "text-[#FFA30F]",
+  trade: "text-[#3b82f6]",
+  yield_deposit: "text-[#10b981]",
+  trade_exit: "text-[#f472b6]",
+};
 
 function formatNextCycle(lastCycleAt: string | null): string {
   if (!lastCycleAt) return "Pending first cycle";
@@ -110,7 +116,6 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
   const [data, setData] = useState<DashboardData>(initial);
   const [live, setLive] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
-  const [triggering, setTriggering] = useState(false);
 
   useEffect(() => {
     const es = new EventSource(getSseUrl());
@@ -129,17 +134,11 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
     return () => es.close();
   }, []);
 
-  async function triggerCycle() {
-    setTriggering(true);
-    try {
-      await fetch(getCycleUrl(), { method: "POST" });
-    } finally {
-      setTriggering(false);
-    }
-  }
-
   const { status, agents, economy, cycles, positions, transactions } = data;
-  const lastCycle = cycles.length > 0 ? cycles[cycles.length - 1] : null;
+  const lastCycle =
+    cycles.length > 0
+      ? [...cycles].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())[0]
+      : null;
   const portfolioUsd = agents.reduce((acc, agent) => acc + Number(agent.totalValueUsd ?? "0"), 0);
   const realizedPnl = Number(economy.realizedPnlUsdc ?? "0");
 
@@ -214,26 +213,12 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
                 />
                 {live ? "LIVE" : "OFFLINE"}
               </span>
-
-              {/* Run Cycle */}
-              <button
-                type="button"
-                onClick={triggerCycle}
-                disabled={triggering || status.circuitBreaker.halted}
-                className={cn(
-                  "text-[11px] font-mono font-semibold uppercase tracking-widest px-3.5 py-1.5 rounded border transition-all",
-                  "border-[#FFA30F] text-[#FFA30F]",
-                  "hover:bg-[#FFA30F] hover:text-[#0F0D0E] hover:shadow-gold-glow",
-                  "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#FFA30F]",
-                )}
-              >
-                {triggering ? "Running…" : "↯ Run Cycle"}
-              </button>
             </div>
           </div>
           <p className="mb-6 max-w-5xl text-sm leading-relaxed text-[#94a3b8]">
             Four AI agents autonomously earn yield, execute trades, pay each other, and compound
-            capital in a self-sustaining DeFi economy via x402 on X Layer. Capital on autopilot.
+            capital in a self-sustaining DeFi economy via x402 on X Layer. <br /> Capital on
+            autopilot.
           </p>
 
           {/* Circuit breaker */}
@@ -313,9 +298,11 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
             status={status}
             agents={agents}
             cycles={cycles}
+            transactions={transactions}
             lastCycle={lastCycle}
             positions={positions}
             economy={economy}
+            onOpenTransactionsTab={() => setTab("transactions")}
           />
         )}
         {tab === "transactions" && <TransactionsTab transactions={transactions} />}
@@ -327,7 +314,17 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
       {/* ── Footer ────────────────────────────────────────────────────── */}
       <footer className="border-t border-[#1a1c24] py-4 px-6">
         <div className="mx-auto max-w-7xl flex items-center justify-between text-[10px] font-mono text-[#334155]">
-          <span>Helios · X Layer Mainnet</span>
+          <span>
+            Helios · X Layer Mainnet ·{" "}
+            <a
+              href="https://web3.okx.com/onchainos/dev-portal"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#64748b] transition-colors"
+            >
+              OnchainOS
+            </a>
+          </span>
           <div className="flex items-center gap-4">
             <a
               href="https://github.com/helioslabs-ai/helios/tree/main/docs"
@@ -360,6 +357,14 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
               className="hover:text-[#64748b] transition-colors"
             >
               OKLink ↗
+            </a>
+            <a
+              href="https://x.com/0xheliosfi"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#64748b] transition-colors"
+            >
+              X @0xheliosfi
             </a>
           </div>
         </div>
@@ -437,19 +442,25 @@ function OverviewTab({
   status,
   agents,
   cycles,
+  transactions,
   lastCycle,
   positions,
   economy,
+  onOpenTransactionsTab,
 }: {
   status: SwarmStatus;
   agents: DashboardData["agents"];
   cycles: CycleSummary[];
+  transactions: TransactionRow[];
   lastCycle: CycleSummary | null;
   positions: DashboardData["positions"];
   economy: DashboardData["economy"];
+  onOpenTransactionsTab: () => void;
 }) {
-  // Build cycle action history for sparkline
-  const recentCycles = [...cycles].slice(-20);
+  // Build cycle action history for sparkline (oldest → newest along x-axis)
+  const recentCycles = [...cycles]
+    .sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime())
+    .slice(-20);
   const actionsChart = recentCycles.map((c, i) => ({
     i,
     val: c.action === "buy" ? 3 : c.action === "yield_park" ? 2 : 1,
@@ -461,7 +472,7 @@ function OverviewTab({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
       {/* Left: Agents + State ─────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 lg:col-span-4">
+      <div className="flex flex-col gap-4 lg:col-span-3">
         <SectionLabel>Agent Swarm</SectionLabel>
         <div className="flex flex-col gap-2">
           {agentNames.map((name) => {
@@ -497,7 +508,7 @@ function OverviewTab({
                     ACTION_COLOR[lastCycle.action],
                   )}
                 >
-                  {lastCycle.action.replace("_", " ")}
+                  {formatCycleActionLabel(lastCycle.action)}
                 </span>
                 {lastCycle.sentinelVerdict && (
                   <span
@@ -533,11 +544,11 @@ function OverviewTab({
         )}
       </div>
 
-      {/* Center: Cycle feed ───────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 lg:col-span-5">
-        <SectionLabel>Cycle Feed · {cycles.length} total</SectionLabel>
+      {/* Center: Activity feed (same tx stream as Transactions tab, compact) */}
+      <div className="flex flex-col gap-4 lg:col-span-6">
+        <SectionLabel>Activity feed · {transactions.length} onchain events</SectionLabel>
         <Card className="flex-1 overflow-hidden min-h-[340px]">
-          <MiniCycleFeed cycles={cycles} />
+          <OverviewTransactionFeed transactions={transactions} onShowAll={onOpenTransactionsTab} />
         </Card>
 
         {/* Cycle activity sparkline */}
@@ -711,56 +722,109 @@ function AgentRow({
   );
 }
 
-// ── MiniCycleFeed ─────────────────────────────────────────────────────────────
+const OVERVIEW_FEED_PREVIEW = 10;
 
-function MiniCycleFeed({ cycles }: { cycles: CycleSummary[] }) {
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const sorted = [...cycles].sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+/** Same data as Transactions tab, newest first; overview shows a short preview only. */
+function OverviewTransactionFeed({
+  transactions,
+  onShowAll,
+}: {
+  transactions: TransactionRow[];
+  onShowAll: () => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sorted = [...transactions].sort(
+    (a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime(),
+  );
+  const shown = sorted.slice(0, OVERVIEW_FEED_PREVIEW);
+  const total = transactions.length;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on new
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keep newest rows in view
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [cycles.length]);
+    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [transactions.length]);
 
   if (sorted.length === 0) {
     return (
       <div className="flex items-center justify-center h-32 text-[11px] font-mono text-[#334155]">
-        awaiting first cycle…
+        No onchain activity yet.
       </div>
     );
   }
 
   return (
-    <div className="h-80 overflow-y-auto">
-      {sorted.map((cycle, idx) => (
-        <div
-          key={cycle.id}
-          className={cn(
-            "flex items-start gap-2.5 px-3 py-2 border-b border-[#1a1c24]/60 font-mono text-[10px] hover:bg-[#13151C] transition-colors",
-            idx === sorted.length - 1 && "animate-slide-in",
-          )}
-        >
-          <span className={cn("size-1.5 rounded-full shrink-0 mt-1", ACTION_DOT[cycle.action])} />
-          <span className="text-[#334155] w-12 shrink-0 tabular-nums">
-            {formatAbsoluteTime(cycle.ts)}
-          </span>
-          <span className={cn("w-20 shrink-0 font-semibold uppercase", ACTION_COLOR[cycle.action])}>
-            {cycle.action === "yield_park" ? "yield_deposit" : cycle.action.replace("_", "·")}
-          </span>
-          <span className="text-[#64748b] flex-1">{cycle.reasoning}</span>
-          {cycle.txHashes[0] && (
-            <a
-              href={getOkLinkTxUrl(cycle.txHashes[0])}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#3b82f6] hover:text-[#FFA30F] transition-colors shrink-0"
-            >
-              ↗
-            </a>
-          )}
+    <div className="flex flex-col max-h-[28rem]">
+      <div ref={scrollRef} className="overflow-x-auto overflow-y-auto min-h-0">
+        <table className="w-full min-w-[640px] text-left font-mono text-[10px]">
+          <thead className="sticky top-0 z-[1] border-b border-[#1a1c24] bg-[#0A0C10]">
+            <tr>
+              {["Time", "Type", "Reasoning", "TX Hash"].map((h) => (
+                <th
+                  key={h}
+                  className="px-3 py-2 text-[9px] uppercase tracking-[0.12em] text-[#4a5568] font-normal whitespace-nowrap"
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((tx) => (
+              <tr
+                key={`${tx.txHash}-${tx.cycleId}-${tx.ts}`}
+                className={cn(
+                  "border-b border-[#1a1c24]/60 hover:bg-[#13151C] transition-colors align-top",
+                  tx === shown[0] && "animate-slide-in",
+                )}
+              >
+                <td className="px-3 py-2 text-[#64748b] tabular-nums whitespace-nowrap w-[7.5rem]">
+                  {formatAbsoluteTime(tx.ts)}
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap w-[8.5rem]">
+                  <span
+                    className={cn(
+                      "font-semibold uppercase tracking-wide",
+                      TX_KIND_COLOR[tx.kind] ?? "text-[#94a3b8]",
+                    )}
+                  >
+                    {formatTxKindLabel(tx.kind)}
+                  </span>
+                </td>
+                <td className="px-3 py-2 text-[#94a3b8]">
+                  <p
+                    className="line-clamp-2 break-words min-w-0 max-w-md"
+                    title={`${tx.context}\n\n${tx.reasoning}`}
+                  >
+                    {tx.reasoning || tx.context}
+                  </p>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap w-[7.5rem]">
+                  <a
+                    href={getOkLinkTxUrl(tx.txHash)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#3b82f6] hover:text-[#FFA30F] transition-colors font-mono"
+                    title={tx.txHash}
+                  >
+                    {tx.txHash.slice(0, 6)}…{tx.txHash.slice(-4)}
+                  </a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {total > OVERVIEW_FEED_PREVIEW && (
+        <div className="border-t border-[#1a1c24] px-3 py-2.5 bg-[#0A0C10] shrink-0">
+          <button
+            type="button"
+            onClick={onShowAll}
+            className="text-[10px] font-mono uppercase tracking-widest text-[#64748b] hover:text-[#FFA30F] transition-colors w-full text-left"
+          >
+            Show all {total}+ transactions ↓
+          </button>
         </div>
-      ))}
-      <div ref={bottomRef} />
+      )}
     </div>
   );
 }
@@ -887,10 +951,15 @@ function EconomyMiniChart({ economy }: { economy: DashboardData["economy"] }) {
 // CYCLES TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
+const TRANSACTIONS_TAB_PREVIEW = 50;
+
 function TransactionsTab({ transactions }: { transactions: TransactionRow[] }) {
+  const [showAll, setShowAll] = useState(false);
   const sorted = [...transactions].sort(
     (a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime(),
   );
+  const visible = showAll ? sorted : sorted.slice(0, TRANSACTIONS_TAB_PREVIEW);
+  const hasMore = sorted.length > TRANSACTIONS_TAB_PREVIEW;
 
   return (
     <div>
@@ -900,68 +969,94 @@ function TransactionsTab({ transactions }: { transactions: TransactionRow[] }) {
 
       {transactions.length === 0 ? (
         <Card className="px-6 py-12 text-center text-[11px] font-mono text-[#334155]">
-          No transactions yet. Trigger one cycle to begin.
+          No onchain activity recorded yet. The swarm runs on its own schedule — check back after
+          the next cycle.
         </Card>
       ) : (
-        <div className="rounded-lg border border-[#1a1c24] overflow-hidden">
-          <table className="w-full text-xs font-mono">
-            <thead>
-              <tr className="border-b border-[#1a1c24] bg-[#0A0C10]">
-                {["Time", "Type", "Agent", "Context", "Reasoning", "Tx Hash", "Cycle ID"].map(
-                  (h) => (
-                    <th
-                      key={h}
-                      className="px-4 py-2.5 text-left text-[9px] uppercase tracking-[0.15em] text-[#4a5568] font-normal"
-                    >
-                      {h}
-                    </th>
-                  ),
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((tx, idx) => (
-                <tr
-                  key={`${tx.txHash}-${tx.cycleId}`}
-                  className={cn(
-                    "border-b border-[#1a1c24]/60 hover:bg-[#13151C] transition-colors",
-                    idx === 0 && "animate-fade-up",
+        <div className="flex flex-col gap-0">
+          <div className="rounded-lg border border-[#1a1c24] overflow-x-auto">
+            <table className="w-full min-w-[860px] text-xs font-mono">
+              <thead>
+                <tr className="border-b border-[#1a1c24] bg-[#0A0C10]">
+                  {["Time", "Type", "Agent", "Context", "Reasoning", "Tx Hash", "Cycle ID"].map(
+                    (h) => (
+                      <th
+                        key={h}
+                        className="px-4 py-2.5 text-left text-[9px] uppercase tracking-[0.15em] text-[#4a5568] font-normal"
+                      >
+                        {h}
+                      </th>
+                    ),
                   )}
-                >
-                  <td className="px-4 py-2.5 text-[#64748b] tabular-nums whitespace-nowrap">
-                    {new Date(tx.ts).toLocaleString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: false,
-                    })}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <span className={cn("font-semibold uppercase", ACTION_COLOR[tx.action])}>
-                      {tx.kind.replace("_", " ")}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-[#94a3b8] capitalize">{tx.agent}</td>
-                  <td className="px-4 py-2.5 text-[#64748b] max-w-xs">{tx.context}</td>
-                  <td className="px-4 py-2.5 text-[#64748b] max-w-xs" title={tx.reasoning}>
-                    {tx.reasoning}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <a
-                      href={getOkLinkTxUrl(tx.txHash)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#3b82f6] hover:text-[#FFA30F] transition-colors"
-                    >
-                      {tx.txHash.slice(0, 8)}…
-                    </a>
-                  </td>
-                  <td className="px-4 py-2.5 text-[#334155]">{tx.cycleId.slice(0, 8)}…</td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {visible.map((tx, idx) => (
+                  <tr
+                    key={`${tx.txHash}-${tx.cycleId}`}
+                    className={cn(
+                      "border-b border-[#1a1c24]/60 hover:bg-[#13151C] transition-colors",
+                      idx === 0 && "animate-fade-up",
+                    )}
+                  >
+                    <td className="px-4 py-2.5 text-[#64748b] tabular-nums whitespace-nowrap">
+                      {new Date(tx.ts).toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      })}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span
+                        className={cn(
+                          "font-semibold uppercase",
+                          TX_KIND_COLOR[tx.kind] ?? "text-[#94a3b8]",
+                        )}
+                      >
+                        {formatTxKindLabel(tx.kind)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-[#94a3b8] capitalize">{tx.agent}</td>
+                    <td className="px-4 py-2.5 text-[#64748b] max-w-xs">{tx.context}</td>
+                    <td className="px-4 py-2.5 text-[#64748b] max-w-xs" title={tx.reasoning}>
+                      {tx.reasoning}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <a
+                        href={getOkLinkTxUrl(tx.txHash)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#3b82f6] hover:text-[#FFA30F] transition-colors"
+                      >
+                        {tx.txHash.slice(0, 8)}…
+                      </a>
+                    </td>
+                    <td className="px-4 py-2.5 text-[#334155]">{tx.cycleId.slice(0, 8)}…</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {hasMore && !showAll && (
+            <button
+              type="button"
+              onClick={() => setShowAll(true)}
+              className="mt-3 w-full rounded-lg border border-[#1a1c24] bg-[#0A0C10] px-4 py-3 text-left text-[10px] font-mono uppercase tracking-widest text-[#64748b] transition-colors hover:border-[#FFA30F]/40 hover:text-[#FFA30F]"
+            >
+              Show all {sorted.length} transactions ↓
+            </button>
+          )}
+          {hasMore && showAll && (
+            <button
+              type="button"
+              onClick={() => setShowAll(false)}
+              className="mt-3 w-full rounded-lg border border-[#1a1c24] bg-[#0A0C10] px-4 py-3 text-left text-[10px] font-mono uppercase tracking-widest text-[#64748b] transition-colors hover:border-[#FFA30F]/40 hover:text-[#FFA30F]"
+            >
+              Show fewer ↑
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -1191,12 +1286,20 @@ function EconomyTab({
               >
                 <XAxis
                   dataKey="name"
-                  tick={{ fill: "#64748b", fontSize: 10, fontFamily: "var(--font-mono)" }}
+                  tick={{
+                    fill: "#64748b",
+                    fontSize: 10,
+                    fontFamily: "var(--font-mono)",
+                  }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fill: "#4a5568", fontSize: 9, fontFamily: "var(--font-mono)" }}
+                  tick={{
+                    fill: "#4a5568",
+                    fontSize: 9,
+                    fontFamily: "var(--font-mono)",
+                  }}
                   axisLine={false}
                   tickLine={false}
                 />

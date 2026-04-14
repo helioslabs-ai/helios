@@ -131,7 +131,7 @@ api.get("/positions", (c) => {
 });
 
 api.get("/logs", (c) => {
-  const n = Math.min(Number(c.req.query("n") ?? "20"), 100);
+  const n = Math.min(Number(c.req.query("n") ?? "100"), 2000);
   const cycles = readJsonl<CycleSummary>("cycle_log.jsonl");
   return c.json({ cycles: cycles.slice(-n), count: cycles.length });
 });

@@ -1,6 +1,8 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+import type { CycleAction } from "./types";
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -28,4 +30,10 @@ export function formatAbsoluteTime(ts: string): string {
     second: "2-digit",
     hour12: false,
   });
+}
+
+/** Human-readable cycle action for UI (state machine still uses yield_park). */
+export function formatCycleActionLabel(action: CycleAction): string {
+  if (action === "yield_park") return "yield deposit";
+  return action.replace("_", " ");
 }

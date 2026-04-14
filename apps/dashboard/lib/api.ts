@@ -65,7 +65,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     fetchJson<SwarmStatus>("/api/status", DEFAULT_STATUS),
     fetchJson<{ agents: AgentInfo[] }>("/api/agents", { agents: [] }),
     fetchJson<EconomyData>("/api/economy", DEFAULT_ECONOMY),
-    fetchJson<LogsData>("/api/logs?n=50", { cycles: [], count: 0 }),
+    fetchJson<LogsData>("/api/logs?n=500", { cycles: [], count: 0 }),
     fetchJson<{ transactions: TransactionRow[]; count: number }>("/api/transactions", {
       transactions: [],
       count: 0,

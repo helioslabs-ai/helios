@@ -1,5 +1,5 @@
 import type { CycleSummary } from "@/lib/types";
-import { cn, formatRelativeTime } from "@/lib/utils";
+import { cn, formatCycleActionLabel, formatRelativeTime } from "@/lib/utils";
 
 interface Props {
   lastCycle: CycleSummary | null;
@@ -22,7 +22,7 @@ export function ReasoningBlock({ lastCycle }: Props) {
         {lastCycle && (
           <div className="flex items-center gap-2">
             <span className={cn("text-xs font-mono font-semibold", ACTION_COLOR[lastCycle.action])}>
-              {lastCycle.action.toUpperCase()}
+              {formatCycleActionLabel(lastCycle.action)}
             </span>
             <span className="text-xs font-mono text-text-dim">
               {formatRelativeTime(lastCycle.ts)}
