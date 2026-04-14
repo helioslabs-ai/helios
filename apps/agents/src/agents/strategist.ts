@@ -1,4 +1,4 @@
-import { TOKEN_ADDRESSES } from "@helios/shared/chains";
+import { isXLayerSafeTradeContract, TOKEN_ADDRESSES } from "@helios/shared/chains";
 import { generateText } from "../ai/index.js";
 import { buildStrategistBudget } from "../prompts/strategist.js";
 import type { AgentConfig, CycleContext } from "../types.js";
@@ -27,8 +27,9 @@ After running all tools, output your final decision as a JSON block inside <DECI
 </DECISION>
 
 Rules:
-- Always set recommendation to "trade" when any plausible swap target exists; use the best token from tools (hot tokens, signals, or trenches) with a real 0x contract on X Layer
-- If unsure, still return "trade" with the highest-liquidity candidate you found and a compositeScore between 0.3 and 0.55
+- For "trade", the buy target must be a major or stable on X Layer only: WOKB, USDC, USDG, WETH, WBTC, or native OKB — use the canonical 0x contract from tool metadata
+- Do NOT pick meme / trench / signal-only tokens (e.g. low-liquidity alts) as topContract — they fail Sentinel security scans
+- If unsure, still return "trade" with WOKB or USDC-tier liquidity and a compositeScore between 0.3 and 0.55
 - Use "yield" only when the best action is explicitly Aave / earn-only (no swap target)
 - Avoid "no_alpha" — the pipeline will normalize weak scans to a default candidate
 `;
@@ -43,6 +44,16 @@ export function normalizeScanResult(r: ScanResult): ScanResult {
   const fallbackToken = "WOKB";
 
   if (r.recommendation === "trade" && isValidContract(r.topContract)) {
+    if (!isXLayerSafeTradeContract(r.topContract)) {
+      return {
+        recommendation: "trade",
+        topToken: fallbackToken,
+        topContract: fallbackContract,
+        compositeScore: Math.max(r.compositeScore > 0 ? r.compositeScore : 0.4, 0.35),
+        signalCount: r.signalCount > 0 ? r.signalCount : 1,
+        reasoning: `Sanitized: ${r.topToken ?? "?"} (${r.topContract}) is not a major/stable allowlist target; using WOKB for Sentinel + Executor.`,
+      };
+    }
     return {
       ...r,
       compositeScore: r.compositeScore > 0 ? r.compositeScore : 0.4,
@@ -51,20 +62,32 @@ export function normalizeScanResult(r: ScanResult): ScanResult {
 
   // Promote yield → trade so Curator runs Sentinel + optional Executor deploy
   if (r.recommendation === "yield") {
+    let topContract = isValidContract(r.topContract) ? r.topContract : fallbackContract;
+    let topToken = r.topToken ?? fallbackToken;
+    if (!isXLayerSafeTradeContract(topContract)) {
+      topContract = fallbackContract;
+      topToken = fallbackToken;
+    }
     return {
       recommendation: "trade",
-      topToken: r.topToken ?? fallbackToken,
-      topContract: isValidContract(r.topContract) ? r.topContract : fallbackContract,
+      topToken,
+      topContract,
       compositeScore: Math.max(r.compositeScore, 0.35),
       signalCount: r.signalCount > 0 ? r.signalCount : 1,
       reasoning: r.reasoning || "Promoted yield scan to trade path for risk check.",
     };
   }
 
+  let topContract = isValidContract(r.topContract) ? r.topContract : fallbackContract;
+  let topToken = r.topToken ?? fallbackToken;
+  if (!isXLayerSafeTradeContract(topContract)) {
+    topContract = fallbackContract;
+    topToken = fallbackToken;
+  }
   return {
     recommendation: "trade",
-    topToken: r.topToken ?? fallbackToken,
-    topContract: isValidContract(r.topContract) ? r.topContract : fallbackContract,
+    topToken,
+    topContract,
     compositeScore: Math.max(r.compositeScore, 0.35),
     signalCount: r.signalCount > 0 ? r.signalCount : 1,
     reasoning:

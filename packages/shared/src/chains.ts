@@ -35,3 +35,22 @@ export function resolveTokenAddress(symbolOrAddress: string): string {
   const addr = TOKEN_ADDRESSES[symbolOrAddress.toUpperCase()];
   return addr ?? symbolOrAddress.toLowerCase();
 }
+
+/**
+ * Majors / stables on X Layer only — used to avoid Sentinel blocking memecoins (e.g. trench picks)
+ * before Executor swap. Addresses are lowercased for comparison.
+ */
+export const XLAYER_SAFE_TRADE_CONTRACTS = new Set(
+  [
+    XLAYER_USDC,
+    XLAYER_USDG,
+    TOKEN_ADDRESSES.WOKB,
+    TOKEN_ADDRESSES.WETH,
+    TOKEN_ADDRESSES.WBTC,
+    TOKEN_ADDRESSES.OKB,
+  ].map((a) => a.toLowerCase()),
+);
+
+export function isXLayerSafeTradeContract(address: string): boolean {
+  return XLAYER_SAFE_TRADE_CONTRACTS.has(address.trim().toLowerCase());
+}

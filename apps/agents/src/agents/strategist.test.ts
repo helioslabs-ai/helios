@@ -1,6 +1,6 @@
 import { TOKEN_ADDRESSES } from "@helios/shared/chains";
 import { describe, expect, it } from "vitest";
-import { parseDecision } from "./strategist.js";
+import { normalizeScanResult, parseDecision } from "./strategist.js";
 
 describe("parseDecision", () => {
   it("parses a valid trade decision", () => {
@@ -62,5 +62,37 @@ describe("parseDecision", () => {
     expect(result.topContract).toBe(TOKEN_ADDRESSES.WOKB);
     expect(result.compositeScore).toBeGreaterThanOrEqual(0.35);
     expect(result.reasoning.length).toBeGreaterThan(0);
+  });
+
+  it("sanitizes memecoin trade target to WOKB before Sentinel", () => {
+    const text = `
+      <DECISION>
+      {
+        "recommendation": "trade",
+        "topToken": "XDOG",
+        "topContract": "0x0cc24c51bf89c00c5affbfcf5e856c25ecbdb48e",
+        "compositeScore": 0.72,
+        "signalCount": 2,
+        "reasoning": "Trenches signal"
+      }
+      </DECISION>
+    `;
+    const result = parseDecision(text);
+    expect(result.topContract).toBe(TOKEN_ADDRESSES.WOKB);
+    expect(result.topToken).toBe("WOKB");
+    expect(result.reasoning).toContain("Sanitized");
+  });
+
+  it("normalizeScanResult maps unsafe contract to WOKB", () => {
+    const r = normalizeScanResult({
+      recommendation: "trade",
+      topToken: "MEME",
+      topContract: "0x0cc24c51bf89c00c5affbfcf5e856c25ecbdb48e",
+      compositeScore: 0.5,
+      signalCount: 1,
+      reasoning: "test",
+    });
+    expect(r.topContract).toBe(TOKEN_ADDRESSES.WOKB);
+    expect(r.topToken).toBe("WOKB");
   });
 });
