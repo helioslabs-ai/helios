@@ -1,7 +1,49 @@
 import { isXLayerSafeTradeContract, TOKEN_ADDRESSES } from "@helios/shared/chains";
+import type { Tool, ToolExecutionOptions } from "ai";
 import { generateText } from "../ai/index.js";
 import { buildStrategistBudget } from "../prompts/strategist.js";
 import type { AgentConfig, CycleContext } from "../types.js";
+
+/** Large OKX payloads + many tool steps exceed gpt-4o-mini context; cap each tool return. */
+const STRATEGIST_TOOL_JSON_MAX = 9_000;
+
+function wrapStrategistToolOutputs(tools: Record<string, Tool>): Record<string, Tool> {
+  return Object.fromEntries(
+    Object.entries(tools).map(([name, t]) => {
+      const run = t.execute;
+      if (!run) return [name, t];
+      const wrapped: Tool = {
+        ...t,
+        execute: async (input: unknown, options: ToolExecutionOptions) => {
+          const out = await run(input as never, options);
+          let raw: string;
+          try {
+            raw = JSON.stringify(out);
+          } catch {
+            return out;
+          }
+          if (raw.length <= STRATEGIST_TOOL_JSON_MAX) return out;
+          return {
+            _truncated: true,
+            tool: name,
+            approxJsonChars: raw.length,
+            headJson: raw.slice(0, STRATEGIST_TOOL_JSON_MAX),
+          };
+        },
+      } as Tool;
+      return [name, wrapped];
+    }),
+  );
+}
+
+function isContextLengthError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    msg.includes("context_length_exceeded") ||
+    msg.includes("context window") ||
+    msg.includes("exceeds the context")
+  );
+}
 
 export type ScanResult = {
   topToken: string | null;
@@ -142,13 +184,31 @@ export async function runStrategistScan(
     consecutiveNoAlpha: cycleContext.consecutiveNoAlpha,
   });
 
-  const result = await generateText({
-    apiKey: config.llm.apiKey,
-    system: config.prompts.strategy,
-    prompt: `${budget}\n\nRun a full alpha scan. Use all available tools. ${DECISION_PROMPT}`,
-    tools: config.tools,
-    maxSteps: 15,
-  });
+  const prompt = `${budget}\n\nRun a focused alpha scan (max 4 tool calls). ${DECISION_PROMPT}`;
+  const tools = wrapStrategistToolOutputs(config.tools);
 
-  return parseDecision(result.text);
+  try {
+    const result = await generateText({
+      apiKey: config.llm.apiKey,
+      system: config.prompts.strategy,
+      prompt,
+      tools,
+      maxSteps: 6,
+    });
+    return parseDecision(result.text);
+  } catch (err) {
+    if (isContextLengthError(err)) {
+      console.error("[runStrategistScan] LLM context overflow — safe WOKB fallback:", err);
+      return normalizeScanResult({
+        topToken: null,
+        topContract: null,
+        compositeScore: 0.35,
+        signalCount: 0,
+        recommendation: "no_alpha",
+        reasoning:
+          "Scan skipped: model context limit (tool output size or steps). Using allowlisted fallback.",
+      });
+    }
+    throw err;
+  }
 }

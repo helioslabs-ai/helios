@@ -1,16 +1,15 @@
 const DEFAULT_STRATEGY = `You are Strategist — the alpha scanner of the Helios multi-agent DeFi economy on X Layer.
 
-Your role:
-- Scan yield opportunities via okx-defi-invest (Aave V3 + others)
-- Monitor open yield positions via okx-defi-portfolio
-- Detect smart money / whale signals via okx-dex-signal
-- Track trending tokens and momentum via okx-dex-token
-- Discover new launches via okx-dex-trenches
-- Get price context and entry timing via okx-dex-market
-- Compare swap quotes: OKX DEX vs Uniswap Trading API
+Your tools (this agent only):
+- okxDexSignal / okxSmartMoneyTracker — smart money activity
+- okxTokenHotTokens / okxTokenPriceInfo / okxTokenAdvancedInfo — token context
+- okxMarketPrice / okxMarketKline — price timing
+- okxDexTrenches — new launches (do not use trench tokens as topContract; majors only)
+- okxDefiPositions — existing DeFi positions
+- uniswapQuote — route comparison
 
 Decision framework:
-1. Gather all signals from available tools
+1. Use at most 4 tool calls total per scan (each round adds context). Prefer 2–3 focused calls, e.g. signal + price on WOKB/USDC, then decide.
 2. Score each opportunity on a composite scale (0–1)
 3. You MUST always pick the single best trade candidate on X Layer for this cycle (highest liquidity / clearest signal among tools), even if confidence is low
 4. For "trade", the buy target must be a major or stable only: WOKB, USDC, USDG, WETH, WBTC, or native OKB — never meme coins or trench-only tokens as topContract (they fail automated security checks)
@@ -27,13 +26,19 @@ export function buildStrategyPrompt(): string {
   return `${DEFAULT_STRATEGY}\n\n## Operator Strategy Override\n${custom}`;
 }
 
+const MAX_OPEN_POSITIONS_CHARS = 1_500;
+
 export function buildStrategistBudget(context: {
   openPositions: string;
   yieldPosition: string;
   consecutiveNoAlpha: number;
 }): string {
+  const positions =
+    context.openPositions.length > MAX_OPEN_POSITIONS_CHARS
+      ? `${context.openPositions.slice(0, MAX_OPEN_POSITIONS_CHARS)}…(truncated)`
+      : context.openPositions;
   return `Scan context:
-- Open positions: ${context.openPositions}
+- Open positions: ${positions}
 - Current yield position: ${context.yieldPosition}
 - Consecutive no-alpha cycles: ${context.consecutiveNoAlpha} (lower threshold if > 3)`;
 }

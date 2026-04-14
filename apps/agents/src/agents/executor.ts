@@ -75,7 +75,10 @@ function humanStableToAtomic6(human: string): string {
 
 /**
  * Deterministic Aave deposit on yield_park — does not rely on the LLM to call tools.
- * Tries USDC first (matches XLAYER USDC), then USDG if below minimum or USDC path fails.
+ * Deposit tokens (OKX DeFi /enter, SINGLE_EARN Aave on X Layer):
+ * - USDC first (`HELIOS_AAVE_USDC_INVESTMENT_ID` or product search), then
+ * - USDG (`HELIOS_AAVE_USDG_INVESTMENT_ID` or default 33906).
+ * Swap "buy" path (LLM `runExecutorDeploy`): spends **USDC** from Executor wallet into Strategist's `topContract` (allowlisted majors only after normalizeScanResult).
  */
 export async function runUnconditionalYieldParkDeposit(
   config: AgentConfig,
