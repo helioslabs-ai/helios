@@ -273,7 +273,7 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
     const parkResult = await settleX402(deployUrl, curatorAddress, curatorAccountId, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ instruction }),
+      body: JSON.stringify({ instruction, yieldPark: true }),
     });
 
     appendEconomyLog({

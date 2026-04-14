@@ -1,3 +1,4 @@
+import { TOKEN_ADDRESSES } from "@helios/shared/chains";
 import { describe, expect, it } from "vitest";
 import { parseDecision } from "./strategist.js";
 
@@ -25,40 +26,41 @@ describe("parseDecision", () => {
     expect(result.reasoning).toBe("Strong momentum signals");
   });
 
-  it("parses a yield recommendation", () => {
+  it("parses a yield recommendation and promotes to trade for pipeline continuity", () => {
     const text = `
       <DECISION>
       {"recommendation":"yield","topToken":null,"topContract":null,"compositeScore":0.3,"signalCount":2,"reasoning":"No strong alpha"}
       </DECISION>
     `;
     const result = parseDecision(text);
-    expect(result.recommendation).toBe("yield");
-    expect(result.topToken).toBeNull();
+    expect(result.recommendation).toBe("trade");
+    expect(result.topToken).toBe("WOKB");
+    expect(result.topContract).toBe(TOKEN_ADDRESSES.WOKB);
   });
 
-  it("returns no_alpha fallback when DECISION tag is missing", () => {
+  it("normalizes missing DECISION tag to a trade fallback", () => {
     const result = parseDecision("No alpha found today, markets look flat.");
-    expect(result.recommendation).toBe("no_alpha");
-    expect(result.topToken).toBeNull();
-    expect(result.topContract).toBeNull();
-    expect(result.compositeScore).toBe(0);
-    expect(result.signalCount).toBe(0);
+    expect(result.recommendation).toBe("trade");
+    expect(result.topToken).toBe("WOKB");
+    expect(result.topContract).toBe(TOKEN_ADDRESSES.WOKB);
+    expect(result.compositeScore).toBeGreaterThanOrEqual(0.35);
   });
 
-  it("returns no_alpha fallback when JSON inside tag is malformed", () => {
+  it("normalizes malformed JSON inside DECISION to a trade fallback", () => {
     const text = "<DECISION>{ this is not json }</DECISION>";
     const result = parseDecision(text);
-    expect(result.recommendation).toBe("no_alpha");
+    expect(result.recommendation).toBe("trade");
     expect(result.reasoning).toBe("Failed to parse decision block");
+    expect(result.topContract).toBe(TOKEN_ADDRESSES.WOKB);
   });
 
-  it("fills missing fields with defaults", () => {
+  it("fills missing fields and normalizes no_alpha to trade", () => {
     const text = '<DECISION>{"recommendation":"no_alpha"}</DECISION>';
     const result = parseDecision(text);
-    expect(result.topToken).toBeNull();
-    expect(result.topContract).toBeNull();
-    expect(result.compositeScore).toBe(0);
-    expect(result.signalCount).toBe(0);
-    expect(result.reasoning).toBe("");
+    expect(result.recommendation).toBe("trade");
+    expect(result.topToken).toBe("WOKB");
+    expect(result.topContract).toBe(TOKEN_ADDRESSES.WOKB);
+    expect(result.compositeScore).toBeGreaterThanOrEqual(0.35);
+    expect(result.reasoning.length).toBeGreaterThan(0);
   });
 });

@@ -1,5 +1,6 @@
+import { TOKEN_ADDRESSES } from "@helios/shared/chains";
 import { generateText } from "../ai/index.js";
-import { buildStrategistBudget, STRATEGIST_SYSTEM_PROMPT } from "../prompts/strategist.js";
+import { buildStrategistBudget } from "../prompts/strategist.js";
 import type { AgentConfig, CycleContext } from "../types.js";
 
 export type ScanResult = {
@@ -26,27 +27,68 @@ After running all tools, output your final decision as a JSON block inside <DECI
 </DECISION>
 
 Rules:
-- "trade" only if compositeScore >= 0.6 AND topContract is a real address
-- "yield" if best opportunity is Aave V3 deposit (no strong trade signal)
-- "no_alpha" if nothing scores above 0.4
+- Always set recommendation to "trade" when any plausible swap target exists; use the best token from tools (hot tokens, signals, or trenches) with a real 0x contract on X Layer
+- If unsure, still return "trade" with the highest-liquidity candidate you found and a compositeScore between 0.3 and 0.55
+- Use "yield" only when the best action is explicitly Aave / earn-only (no swap target)
+- Avoid "no_alpha" — the pipeline will normalize weak scans to a default candidate
 `;
+
+function isValidContract(addr: string | null | undefined): addr is string {
+  return typeof addr === "string" && addr.startsWith("0x") && addr.length >= 42;
+}
+
+/** Ensures every cycle produces a trade target so Sentinel + Executor can run when appropriate. */
+export function normalizeScanResult(r: ScanResult): ScanResult {
+  const fallbackContract = TOKEN_ADDRESSES.WOKB;
+  const fallbackToken = "WOKB";
+
+  if (r.recommendation === "trade" && isValidContract(r.topContract)) {
+    return {
+      ...r,
+      compositeScore: r.compositeScore > 0 ? r.compositeScore : 0.4,
+    };
+  }
+
+  // Promote yield → trade so Curator runs Sentinel + optional Executor deploy
+  if (r.recommendation === "yield") {
+    return {
+      recommendation: "trade",
+      topToken: r.topToken ?? fallbackToken,
+      topContract: isValidContract(r.topContract) ? r.topContract : fallbackContract,
+      compositeScore: Math.max(r.compositeScore, 0.35),
+      signalCount: r.signalCount > 0 ? r.signalCount : 1,
+      reasoning: r.reasoning || "Promoted yield scan to trade path for risk check.",
+    };
+  }
+
+  return {
+    recommendation: "trade",
+    topToken: r.topToken ?? fallbackToken,
+    topContract: isValidContract(r.topContract) ? r.topContract : fallbackContract,
+    compositeScore: Math.max(r.compositeScore, 0.35),
+    signalCount: r.signalCount > 0 ? r.signalCount : 1,
+    reasoning:
+      r.reasoning ||
+      "Normalized: best-effort X Layer candidate (WOKB) when scan omitted a valid contract.",
+  };
+}
 
 export function parseDecision(text: string): ScanResult {
   const match = text.match(/<DECISION>\s*([\s\S]*?)\s*<\/DECISION>/);
   if (!match) {
-    return {
+    return normalizeScanResult({
       topToken: null,
       topContract: null,
       compositeScore: 0,
       signalCount: 0,
       recommendation: "no_alpha",
       reasoning: text.slice(-500),
-    };
+    });
   }
 
   try {
     const parsed = JSON.parse(match[1]) as Partial<ScanResult>;
-    return {
+    const raw: ScanResult = {
       topToken: parsed.topToken ?? null,
       topContract: parsed.topContract ?? null,
       compositeScore: parsed.compositeScore ?? 0,
@@ -54,15 +96,16 @@ export function parseDecision(text: string): ScanResult {
       recommendation: parsed.recommendation ?? "no_alpha",
       reasoning: parsed.reasoning ?? "",
     };
+    return normalizeScanResult(raw);
   } catch {
-    return {
+    return normalizeScanResult({
       topToken: null,
       topContract: null,
       compositeScore: 0,
       signalCount: 0,
       recommendation: "no_alpha",
       reasoning: "Failed to parse decision block",
-    };
+    });
   }
 }
 

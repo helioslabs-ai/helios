@@ -6,7 +6,7 @@ import {
   X402_DEPLOY_PRICE,
 } from "@helios/shared/payments";
 import { Hono } from "hono";
-import { runExecutorDeploy } from "../agents/executor.js";
+import { runExecutorDeploy, runUnconditionalYieldParkDeposit } from "../agents/executor.js";
 import { buildCycleContext } from "../memory/index.js";
 import { buildExecutorBudget, EXECUTOR_SYSTEM_PROMPT } from "../prompts/executor.js";
 import { executorTools } from "../tools/registry.js";
@@ -46,8 +46,11 @@ executorRoutes.post("/deploy", async (c) => {
     return c.json({ error: `Settlement failed: ${settlement.errorReason}` }, 402);
   }
 
-  const body = (await c.req.json().catch(() => ({}))) as { instruction?: string };
-  const instruction = body.instruction ?? "Execute best available opportunity on X Layer.";
+  const body = (await c.req.json().catch(() => ({}))) as {
+    instruction?: string;
+    yieldPark?: boolean;
+  };
+  const yieldPark = body.yieldPark === true;
 
   const executorAccountId = process.env.EXECUTOR_ACCOUNT_ID ?? "";
   const executorBalance = await getWalletBalance(executorAccountId, EXECUTOR_WALLET).catch(() => ({
@@ -61,27 +64,48 @@ executorRoutes.post("/deploy", async (c) => {
     executor: executorBalance.balanceUsdc,
   });
 
-  const deploy = await runExecutorDeploy(
-    {
-      name: "executor",
-      wallet: {
-        accountId: executorAccountId,
-        address: EXECUTOR_WALLET as `0x${string}`,
-      },
-      tools: executorTools,
-      llm: { model: "gpt-4o-mini", apiKey: process.env.OPENAI_API_KEY ?? "" },
-      prompts: {
-        strategy: EXECUTOR_SYSTEM_PROMPT,
-        budget: buildExecutorBudget({
-          walletBalance: executorBalance.balanceUsdc,
-          openPositionCount: context.openPositions.length,
-          liquidReserve: "1.00",
-        }),
-      },
-    },
-    instruction,
-    context,
-  );
+  const deploy = yieldPark
+    ? await runUnconditionalYieldParkDeposit(
+        {
+          name: "executor",
+          wallet: {
+            accountId: executorAccountId,
+            address: EXECUTOR_WALLET as `0x${string}`,
+          },
+          tools: executorTools,
+          llm: { model: "gpt-4o-mini", apiKey: process.env.OPENAI_API_KEY ?? "" },
+          prompts: {
+            strategy: EXECUTOR_SYSTEM_PROMPT,
+            budget: buildExecutorBudget({
+              walletBalance: executorBalance.balanceUsdc,
+              openPositionCount: context.openPositions.length,
+              liquidReserve: "1.00",
+            }),
+          },
+        },
+        context,
+      )
+    : await runExecutorDeploy(
+        {
+          name: "executor",
+          wallet: {
+            accountId: executorAccountId,
+            address: EXECUTOR_WALLET as `0x${string}`,
+          },
+          tools: executorTools,
+          llm: { model: "gpt-4o-mini", apiKey: process.env.OPENAI_API_KEY ?? "" },
+          prompts: {
+            strategy: EXECUTOR_SYSTEM_PROMPT,
+            budget: buildExecutorBudget({
+              walletBalance: executorBalance.balanceUsdc,
+              openPositionCount: context.openPositions.length,
+              liquidReserve: "1.00",
+            }),
+          },
+        },
+        body.instruction ?? "Execute best available opportunity on X Layer.",
+        context,
+      );
 
   return c.json(deploy, 200, {
     "X-Payment-Response": buildPaymentResponse(settlement.txHash, settlement.payer),

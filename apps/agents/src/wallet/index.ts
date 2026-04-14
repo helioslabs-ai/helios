@@ -54,6 +54,10 @@ export interface PreTxUnsignedInfo {
 // ── Session cache ─────────────────────────────────────────────────────────────
 
 const sessionCache = new Map<string, WalletSession>();
+/** Wall-clock time of last successful akLogin per account (JWT can be invalid before expiresAt). */
+const sessionWallMs = new Map<string, number>();
+/** Force TEE re-login at least this often (ms) for signing + x402 — mitigates [10008] access token invalid. */
+export const WALLET_SESSION_MAX_WALL_MS = 20 * 60 * 1000;
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
 
@@ -117,7 +121,9 @@ function hmacSign(
 
 export async function akLogin(accountId: string): Promise<WalletSession> {
   const cached = sessionCache.get(accountId);
-  if (cached && Date.now() / 1000 < cached.expiresAt - 60) {
+  const lastWall = sessionWallMs.get(accountId) ?? 0;
+  const wallFresh = Date.now() - lastWall < WALLET_SESSION_MAX_WALL_MS;
+  if (cached && Date.now() / 1000 < cached.expiresAt - 60 && wallFresh) {
     return cached;
   }
 
@@ -169,6 +175,7 @@ export async function akLogin(accountId: string): Promise<WalletSession> {
   };
 
   sessionCache.set(accountId, session);
+  sessionWallMs.set(accountId, Date.now());
 
   // Diagnostic: log which addresses OKX associates with this accountId
   if (verifyResp.addressList?.length) {
@@ -185,7 +192,9 @@ export async function akLogin(accountId: string): Promise<WalletSession> {
 
 async function getSession(accountId: string): Promise<WalletSession> {
   const cached = sessionCache.get(accountId);
-  if (!cached || Date.now() / 1000 >= cached.expiresAt - 60) {
+  const lastWall = sessionWallMs.get(accountId) ?? 0;
+  const wallFresh = Date.now() - lastWall < WALLET_SESSION_MAX_WALL_MS;
+  if (!cached || Date.now() / 1000 >= cached.expiresAt - 60 || !wallFresh) {
     return akLogin(accountId);
   }
   return cached;
@@ -363,105 +372,138 @@ export interface X402SettleResult {
   amount: string;
 }
 
+/** OKX may reject cached JWT before local expiry; retry after forcing a fresh akLogin. */
+function isWalletAccessTokenError(code: string | number, msg: string): boolean {
+  const m = msg.toLowerCase();
+  return (
+    String(code) === "10008" ||
+    m.includes("access token") ||
+    m.includes("token invalid") ||
+    m.includes("unauthorized")
+  );
+}
+
 async function signX402(
   payerAddress: string,
   accountId: string,
   requirement: X402Requirement,
 ): Promise<X402Proof> {
-  const session = await akLogin(accountId);
+  const nowBase = Math.floor(Date.now() / 1000);
 
-  const now = Math.floor(Date.now() / 1000);
-  const validBefore = (now + (requirement.maxTimeoutSeconds ?? 300)).toString();
-  const nonce = `0x${crypto.randomBytes(32).toString("hex")}`;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) {
+      sessionCache.delete(accountId);
+      sessionWallMs.delete(accountId);
+      console.warn(
+        `[x402:sign] Retrying after invalid/expired wallet session (accountId=${accountId})`,
+      );
+    }
 
-  const baseFields = {
-    accountId,
-    chainIndex: Number(XLAYER_CHAIN_INDEX),
-    from: payerAddress,
-    to: requirement.payTo,
-    value: requirement.amount,
-    validAfter: "0",
-    validBefore,
-    nonce,
-    verifyingContract: requirement.asset,
-  };
+    // Proactive refresh: akLogin skips cache when wall-clock age exceeds WALLET_SESSION_MAX_WALL_MS
+    const session = await akLogin(accountId);
 
-  const headers = jwtHeaders(session.accessToken);
+    const validBefore = (nowBase + (requirement.maxTimeoutSeconds ?? 300)).toString();
+    const nonce = `0x${crypto.randomBytes(32).toString("hex")}`;
 
-  // Step 1: Get EIP-3009 unsigned hash from TEE
-  const genHashRes = await fetch(`${TEE_BASE}${WALLET_PREFIX}/pre-transaction/gen-msg-hash`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(baseFields),
-  });
-  const genHashJson = (await genHashRes.json()) as {
-    code: string | number;
-    msg: string;
-    data: Array<{ msgHash: string; domainHash: string }>;
-  };
-
-  if (genHashJson.code !== "0" && genHashJson.code !== 0) {
-    throw new Error(`gen-msg-hash failed [${genHashJson.code}]: ${genHashJson.msg}`);
-  }
-
-  const hashData = genHashJson.data?.[0];
-  if (!hashData?.msgHash) {
-    throw new Error(
-      `gen-msg-hash returned no msgHash. Raw response: ${JSON.stringify(genHashJson)}`,
-    );
-  }
-
-  const { msgHash, domainHash } = hashData;
-
-  // Step 2: HPKE decrypt → Ed25519 seed → sign msgHash locally
-  const seed = await hpkeDecryptSessionSk(session.encryptedSessionSk, session.sessionPrivateKey);
-  if (seed.length !== 32) throw new Error(`HPKE: seed must be 32 bytes, got ${seed.length}`);
-
-  const msgHashBytes = Buffer.from(msgHash.replace(/^0x/, ""), "hex");
-  const sessionSignature = Buffer.from(ed25519Sign(seed, msgHashBytes)).toString("base64");
-
-  console.log(`[x402:sign] payer=${payerAddress} accountId=${accountId}`);
-  console.log(`[x402:sign] msgHash=${msgHash.slice(0, 18)} domainHash=${domainHash.slice(0, 18)}`);
-  console.log(`[x402:sign] seed[0]=${seed[0]} sessionSig=${sessionSignature.slice(0, 12)}...`);
-
-  // Step 3: TEE produces final EIP-3009 secp256k1 signature
-  const signRes = await fetch(`${TEE_BASE}${WALLET_PREFIX}/pre-transaction/sign-msg`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      ...baseFields,
-      domainHash,
-      sessionCert: session.sessionCert,
-      sessionSignature,
-    }),
-  });
-  const signJson = (await signRes.json()) as {
-    code: string | number;
-    msg: string;
-    data: Array<{ signature: string }>;
-  };
-
-  if (signJson.code !== "0" && signJson.code !== 0) {
-    throw new Error(`sign-msg failed [${signJson.code}]: ${signJson.msg}`);
-  }
-
-  console.log(`[x402:sign] sign-msg raw: ${JSON.stringify(signJson)}`);
-  const sig = signJson.data?.[0]?.signature;
-  if (!sig) {
-    throw new Error(`sign-msg returned no signature. Raw response: ${JSON.stringify(signJson)}`);
-  }
-
-  return {
-    signature: sig,
-    authorization: {
+    const baseFields = {
+      accountId,
+      chainIndex: Number(XLAYER_CHAIN_INDEX),
       from: payerAddress,
       to: requirement.payTo,
       value: requirement.amount,
       validAfter: "0",
       validBefore,
       nonce,
-    },
-  };
+      verifyingContract: requirement.asset,
+    };
+
+    const headers = jwtHeaders(session.accessToken);
+
+    // Step 1: Get EIP-3009 unsigned hash from TEE
+    const genHashRes = await fetch(`${TEE_BASE}${WALLET_PREFIX}/pre-transaction/gen-msg-hash`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(baseFields),
+    });
+    const genHashJson = (await genHashRes.json()) as {
+      code: string | number;
+      msg: string;
+      data: Array<{ msgHash: string; domainHash: string }>;
+    };
+
+    if (genHashJson.code !== "0" && genHashJson.code !== 0) {
+      if (attempt === 0 && isWalletAccessTokenError(genHashJson.code, genHashJson.msg)) {
+        continue;
+      }
+      throw new Error(`gen-msg-hash failed [${genHashJson.code}]: ${genHashJson.msg}`);
+    }
+
+    const hashData = genHashJson.data?.[0];
+    if (!hashData?.msgHash) {
+      throw new Error(
+        `gen-msg-hash returned no msgHash. Raw response: ${JSON.stringify(genHashJson)}`,
+      );
+    }
+
+    const { msgHash, domainHash } = hashData;
+
+    // Step 2: HPKE decrypt → Ed25519 seed → sign msgHash locally
+    const seed = await hpkeDecryptSessionSk(session.encryptedSessionSk, session.sessionPrivateKey);
+    if (seed.length !== 32) throw new Error(`HPKE: seed must be 32 bytes, got ${seed.length}`);
+
+    const msgHashBytes = Buffer.from(msgHash.replace(/^0x/, ""), "hex");
+    const sessionSignature = Buffer.from(ed25519Sign(seed, msgHashBytes)).toString("base64");
+
+    console.log(`[x402:sign] payer=${payerAddress} accountId=${accountId}`);
+    console.log(
+      `[x402:sign] msgHash=${msgHash.slice(0, 18)} domainHash=${domainHash.slice(0, 18)}`,
+    );
+    console.log(`[x402:sign] seed[0]=${seed[0]} sessionSig=${sessionSignature.slice(0, 12)}...`);
+
+    // Step 3: TEE produces final EIP-3009 secp256k1 signature
+    const signRes = await fetch(`${TEE_BASE}${WALLET_PREFIX}/pre-transaction/sign-msg`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        ...baseFields,
+        domainHash,
+        sessionCert: session.sessionCert,
+        sessionSignature,
+      }),
+    });
+    const signJson = (await signRes.json()) as {
+      code: string | number;
+      msg: string;
+      data: Array<{ signature: string }>;
+    };
+
+    if (signJson.code !== "0" && signJson.code !== 0) {
+      if (attempt === 0 && isWalletAccessTokenError(signJson.code, signJson.msg)) {
+        continue;
+      }
+      throw new Error(`sign-msg failed [${signJson.code}]: ${signJson.msg}`);
+    }
+
+    console.log(`[x402:sign] sign-msg raw: ${JSON.stringify(signJson)}`);
+    const sig = signJson.data?.[0]?.signature;
+    if (!sig) {
+      throw new Error(`sign-msg returned no signature. Raw response: ${JSON.stringify(signJson)}`);
+    }
+
+    return {
+      signature: sig,
+      authorization: {
+        from: payerAddress,
+        to: requirement.payTo,
+        value: requirement.amount,
+        validAfter: "0",
+        validBefore,
+        nonce,
+      },
+    };
+  }
+
+  throw new Error("signX402: exhausted retries after access token errors");
 }
 
 /**
@@ -537,7 +579,16 @@ type WalletBalance = {
   balanceUsdc: string;
 };
 
-export async function getWalletBalance(accountId: string, address: string): Promise<WalletBalance> {
+export type WalletTokenBalances = {
+  accountId: string;
+  address: string;
+  balanceUsdc: string;
+  balanceUsdg: string;
+};
+
+async function fetchTokenAssetsRaw(
+  accountId: string,
+): Promise<Array<{ tokenSymbol: string; balance: string }>> {
   const ts = new Date().toISOString();
   const path = `/api/v5/waas/asset/token-assets?accountId=${accountId}&chainIndex=196`;
   const secretKey = process.env.OKX_SECRET_KEY ?? "";
@@ -558,9 +609,29 @@ export async function getWalletBalance(accountId: string, address: string): Prom
   }
 
   const json = (await res.json()) as { data: Array<{ tokenSymbol: string; balance: string }> };
-  const usdc = json.data?.find((t) => t.tokenSymbol === "USDC");
+  return json.data ?? [];
+}
 
+export async function getWalletBalance(accountId: string, address: string): Promise<WalletBalance> {
+  const data = await fetchTokenAssetsRaw(accountId);
+  const usdc = data.find((t) => t.tokenSymbol === "USDC");
   return { accountId, address, balanceUsdc: usdc?.balance ?? "0" };
+}
+
+/** USDC + USDG balances on X Layer (for Aave deposit routing). */
+export async function getWalletTokenBalances(
+  accountId: string,
+  address: string,
+): Promise<WalletTokenBalances> {
+  const data = await fetchTokenAssetsRaw(accountId);
+  const usdc = data.find((t) => t.tokenSymbol === "USDC");
+  const usdg = data.find((t) => t.tokenSymbol === "USDG");
+  return {
+    accountId,
+    address,
+    balanceUsdc: usdc?.balance ?? "0",
+    balanceUsdg: usdg?.balance ?? "0",
+  };
 }
 
 export async function getAllBalances(

@@ -94,40 +94,79 @@ interface DefiTxEntry {
   serializedData: string;
 }
 
-/**
- * Full DeFi deposit via OKX TEE Agentic Wallet.
- * The OKX DeFi API returns a dataList with APPROVE + DEPOSIT entries.
- * We sign and broadcast each in sequence, returning the DEPOSIT txHash.
- */
-export const okxDefiDeposit = tool({
-  description:
-    "Deposit funds into a DeFi yield product (e.g. Aave V3 USDG on X Layer, investmentId: '33906') using the TEE agentic wallet. Handles approval + deposit signing automatically. Returns txHash.",
-  parameters: z.object({
-    investmentId: z.string().describe("Investment product ID. Aave V3 USDG on X Layer = '33906'"),
-    walletAddress: z.string().describe("Depositor wallet address (0x...)"),
-    accountId: z.string().describe("Depositor OKX account ID for TEE signing"),
-    token: z.string().default("USDG").describe("Token symbol to deposit"),
-    amount: z.string().describe("Amount in minimal units (e.g. '1000000' = 1 USDG, 6 decimals)"),
-    slippage: z.string().default("0.01"),
-  }),
-  execute: async ({ investmentId, walletAddress, accountId, token, amount, slippage }) => {
-    const investBody = {
-      chainIndex: CHAIN_INDEX,
-      investmentId,
-      investAddress: walletAddress,
-      investToken: token,
-      investAmount: amount,
-      slippage,
-    };
+/** Known Aave V3 USDG single-earn on X Layer (OKX product id). */
+export const DEFAULT_AAVE_USDG_INVESTMENT_ID = "33906";
 
-    // OKX DeFi enter returns dataList: [{callDataType: "APPROVE", ...}, {callDataType: "DEPOSIT", ...}]
+/**
+ * Resolve an Aave lending product id for USDC or USDG on X Layer via OKX DeFi search.
+ */
+export async function findAaveInvestmentIdForToken(token: "USDC" | "USDG"): Promise<string | null> {
+  const json = await okxFetch<{ data?: Array<Record<string, unknown>> }>(
+    "/api/v6/defi/product/search",
+    {
+      method: "POST",
+      body: {
+        chainIndex: CHAIN_INDEX,
+        platform: "Aave",
+        token,
+        productGroup: "SINGLE_EARN",
+      },
+    },
+  );
+  const rows = allItems(json);
+  if (rows.length === 0) return null;
+  const pick =
+    rows.find((r) =>
+      String(r.platform ?? "")
+        .toLowerCase()
+        .includes("aave"),
+    ) ?? rows[0];
+  const id = pick.investmentId ?? pick.investmentID;
+  return id != null ? String(id) : null;
+}
+
+export interface DefiDepositTeeParams {
+  investmentId: string;
+  walletAddress: string;
+  accountId: string;
+  token: string;
+  /** Minimal units (6 decimals for USDC/USDG on X Layer). */
+  amount: string;
+  slippage?: string;
+}
+
+/**
+ * Programmatic Aave deposit (same path as okxDefiDeposit tool). Logs full errors — never swallow.
+ */
+export async function executeDefiDepositTee(params: DefiDepositTeeParams): Promise<{
+  txHash: string;
+  orderId: string;
+  investmentId: string;
+}> {
+  const { investmentId, walletAddress, accountId, token, amount, slippage = "0.01" } = params;
+  const investBody = {
+    chainIndex: CHAIN_INDEX,
+    investmentId,
+    investAddress: walletAddress,
+    investToken: token,
+    investAmount: amount,
+    slippage,
+  };
+
+  try {
     const investJson = await okxFetch<{ dataList?: DefiTxEntry[] }>(
       "/api/v6/defi/transaction/enter",
       { method: "POST", body: investBody },
     );
 
     const txList = investJson.dataList ?? [];
-    if (txList.length === 0) throw new Error("No DeFi transaction data returned");
+    if (txList.length === 0) {
+      const err = new Error(
+        `No DeFi transaction data returned. investBody=${JSON.stringify(investBody)} raw=${JSON.stringify(investJson)}`,
+      );
+      console.error("[executeDefiDepositTee]", err.message);
+      throw err;
+    }
 
     let depositTxHash = "";
     let depositOrderId = "";
@@ -158,7 +197,50 @@ export const okxDefiDeposit = tool({
       }
     }
 
-    if (!depositTxHash) throw new Error("DEPOSIT transaction not found in dataList");
+    if (!depositTxHash) {
+      const err = new Error(
+        `DEPOSIT transaction not found in dataList. investmentId=${investmentId} token=${token}`,
+      );
+      console.error("[executeDefiDepositTee]", err.message);
+      throw err;
+    }
     return { txHash: depositTxHash, orderId: depositOrderId, investmentId };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(
+      "[executeDefiDepositTee] deposit failed:",
+      msg,
+      "params:",
+      JSON.stringify({ ...params, accountId: `${accountId.slice(0, 6)}…` }),
+    );
+    throw err;
+  }
+}
+
+/**
+ * Full DeFi deposit via OKX TEE Agentic Wallet.
+ * The OKX DeFi API returns a dataList with APPROVE + DEPOSIT entries.
+ * We sign and broadcast each in sequence, returning the DEPOSIT txHash.
+ */
+export const okxDefiDeposit = tool({
+  description:
+    "Deposit funds into a DeFi yield product (e.g. Aave V3 USDG on X Layer, investmentId: '33906') using the TEE agentic wallet. Handles approval + deposit signing automatically. Returns txHash.",
+  parameters: z.object({
+    investmentId: z.string().describe("Investment product ID. Aave V3 USDG on X Layer = '33906'"),
+    walletAddress: z.string().describe("Depositor wallet address (0x...)"),
+    accountId: z.string().describe("Depositor OKX account ID for TEE signing"),
+    token: z.string().default("USDG").describe("Token symbol to deposit"),
+    amount: z.string().describe("Amount in minimal units (e.g. '1000000' = 1 USDG, 6 decimals)"),
+    slippage: z.string().default("0.01"),
+  }),
+  execute: async ({ investmentId, walletAddress, accountId, token, amount, slippage }) => {
+    return executeDefiDepositTee({
+      investmentId,
+      walletAddress,
+      accountId,
+      token,
+      amount,
+      slippage,
+    });
   },
 });
