@@ -200,7 +200,7 @@
 ### Manual tasks (you)
 
 - [x] **P4 — Fund wallets + start agents** — `helios start` on live Render instance with real capital
-- [ ] **P5 — Accumulate 1000+ onchain txns** — automated once agents are running (target before Apr 15)
+- [x] **P5 — Accumulate 1000+ onchain txns** — automated once agents are running (target before Apr 15)
 - [ ] **P6 — Moltbook Agent Track**
       - Register Helios agent on Moltbook
       - Subscribe to m/buildx

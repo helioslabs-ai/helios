@@ -322,8 +322,8 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
           />
         )}
         {tab === "transactions" && <TransactionsTab transactions={transactions} />}
-        {tab === "portfolio" && <PortfolioTab positions={positions} />}
-        {tab === "economy" && <EconomyTab economy={economy} agents={agents} />}
+        {tab === "portfolio" && <PortfolioTab positions={positions} agents={agents} />}
+        {tab === "economy" && <EconomyTab economy={economy} />}
         {tab === "leaderboard" && <LeaderboardTab entries={initialLeaderboard} />}
       </main>
 
@@ -563,7 +563,7 @@ function OverviewTab({
       {/* Center: Activity feed (same tx stream as Transactions tab, compact) */}
       <div className="flex flex-col gap-4 lg:col-span-6">
         <SectionLabel>Activity feed · {transactions.length} onchain events</SectionLabel>
-        <Card className="flex-1 overflow-hidden min-h-[340px]">
+        <Card className="overflow-hidden h-[22rem] lg:h-[24rem]">
           <OverviewTransactionFeed transactions={transactions} onShowAll={onOpenTransactionsTab} />
         </Card>
 
@@ -653,6 +653,11 @@ function OverviewTab({
             <Card className="px-4 py-3 text-[11px] font-mono text-[#334155]">No open trades</Card>
           )}
         </div>
+
+        <SectionLabel>Portfolio Summary</SectionLabel>
+        <Card className="p-4">
+          <AgentWalletBalanceChart agents={agents} />
+        </Card>
 
         <SectionLabel>Economy Summary</SectionLabel>
         <Card className="p-4">
@@ -765,7 +770,7 @@ function OverviewTransactionFeed({
   }
 
   return (
-    <div className="flex flex-col max-h-[28rem]">
+    <div className="flex h-full flex-col">
       <div ref={scrollRef} className="overflow-x-auto overflow-y-auto min-h-0">
         <table className="w-full min-w-[640px] text-left font-mono text-[10px]">
           <thead className="sticky top-0 z-[1] border-b border-[#1a1c24] bg-[#0A0C10]">
@@ -960,6 +965,75 @@ function EconomyMiniChart({ economy }: { economy: DashboardData["economy"] }) {
   );
 }
 
+function AgentWalletBalanceChart({ agents }: { agents: DashboardData["agents"] }) {
+  const order: AgentName[] = ["strategist", "sentinel", "executor", "curator"];
+  const colors = ["#FFA30F", "#3b82f6", "#10b981", "#64748b"];
+  const data = order
+    .map((name, i) => ({
+      name,
+      value: Number.parseFloat(agents.find((agent) => agent.name === name)?.totalValueUsd ?? "0"),
+      color: colors[i],
+    }))
+    .filter((d) => d.value > 0);
+
+  const total = data.reduce((sum, d) => sum + d.value, 0);
+
+  return (
+    <div className="flex items-center gap-4">
+      {total > 0 ? (
+        <>
+          <div className="size-20 shrink-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data}
+                  dataKey="value"
+                  innerRadius={24}
+                  outerRadius={36}
+                  strokeWidth={0}
+                  paddingAngle={2}
+                >
+                  {data.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    background: "#0A0C10",
+                    border: "1px solid #1a1c24",
+                    borderRadius: 4,
+                    fontSize: 10,
+                  }}
+                  formatter={(v: unknown) => [`$${(v as number).toFixed(2)}`, ""]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex flex-col gap-1.5 text-[10px] font-mono">
+            {data.map((d) => (
+              <span key={d.name} className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full shrink-0" style={{ background: d.color }} />
+                <span className="text-[#64748b] capitalize w-16">{d.name}</span>
+                <span className="text-white tabular-nums">${d.value.toFixed(2)}</span>
+              </span>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {order.map((name, i) => (
+            <span key={name} className="flex items-center gap-2 text-[10px] font-mono">
+              <span className="size-1.5 rounded-full shrink-0" style={{ background: colors[i] }} />
+              <span className="text-[#64748b] capitalize w-16">{name}</span>
+              <span className="text-[#334155]">$0.00</span>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // CYCLES TAB
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1079,7 +1153,13 @@ function TransactionsTab({ transactions }: { transactions: TransactionRow[] }) {
 // PORTFOLIO TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function PortfolioTab({ positions }: { positions: DashboardData["positions"] }) {
+function PortfolioTab({
+  positions,
+  agents: walletAgents,
+}: {
+  positions: DashboardData["positions"];
+  agents: DashboardData["agents"];
+}) {
   const allPositions = [...positions.openPositions, ...positions.closedPositions];
 
   // Build P&L area chart from closed positions
@@ -1252,6 +1332,26 @@ function PortfolioTab({ positions }: { positions: DashboardData["positions"] }) 
           </div>
         )}
       </div>
+
+      <div>
+        <SectionLabel>Agent Wallet Balances (USD)</SectionLabel>
+        <div className="rounded-lg border border-[#1a1c24] overflow-hidden">
+          {walletAgents.map((agent, index) => (
+            <div
+              key={agent.name}
+              className={cn(
+                "flex items-center justify-between px-5 py-3.5 hover:bg-[#13151C] transition-colors",
+                index < walletAgents.length - 1 && "border-b border-[#1a1c24]/60",
+              )}
+            >
+              <span className="text-sm font-mono capitalize text-white">{agent.name}</span>
+              <span className="text-base font-mono font-bold text-[#10b981] tabular-nums">
+                ${Number(agent.totalValueUsd ?? "0").toFixed(2)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1260,13 +1360,7 @@ function PortfolioTab({ positions }: { positions: DashboardData["positions"] }) 
 // ECONOMY TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function EconomyTab({
-  economy,
-  agents: walletAgents,
-}: {
-  economy: DashboardData["economy"];
-  agents: DashboardData["agents"];
-}) {
+function EconomyTab({ economy }: { economy: DashboardData["economy"] }) {
   const payoutAgents: AgentName[] = ["strategist", "sentinel", "executor", "curator"];
   const colors = ["#FFA30F", "#3b82f6", "#10b981", "#64748b"];
 
@@ -1357,26 +1451,6 @@ function EconomyTab({
               </div>
               <span className="text-base font-mono font-bold text-[#FFA30F] tabular-nums">
                 ${economy.perAgent[agent] ?? "0.0000"}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <SectionLabel>Agent Wallet Balances (USD)</SectionLabel>
-        <div className="rounded-lg border border-[#1a1c24] overflow-hidden">
-          {walletAgents.map((agent, index) => (
-            <div
-              key={agent.name}
-              className={cn(
-                "flex items-center justify-between px-5 py-3.5 hover:bg-[#13151C] transition-colors",
-                index < walletAgents.length - 1 && "border-b border-[#1a1c24]/60",
-              )}
-            >
-              <span className="text-sm font-mono capitalize text-white">{agent.name}</span>
-              <span className="text-base font-mono font-bold text-[#10b981] tabular-nums">
-                ${Number(agent.totalValueUsd ?? "0").toFixed(2)}
               </span>
             </div>
           ))}
