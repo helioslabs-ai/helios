@@ -15,7 +15,13 @@
 | ------------------ | -------------------------------------------- | ------------- | -------------------------------------------------------------------------------------------- |
 | HeliosRegistry.sol | `0xbA74426e9144bf68f986ec239E32a882843487E7` | X Layer (196) | [OKLink ↗](https://www.oklink.com/xlayer/address/0xbA74426e9144bf68f986ec239E32a882843487E7) |
 
-**Primary wallet (Curator):** `0x726cf0c4fe559db9a32396161694c7b88c60c947` — [OKLink ↗](https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947) — orchestrates every cycle, settles all x402 agent fees, registers the swarm on the leaderboard.
+### Submission Proof TX (raw-first)
+
+- `okx-x402-payment`: `0x56ef6e584ea32e788e3cef890ef975f67e76000464fd4fa17912b0d9fdfcfe6c`
+- `okx-dex-swap`: `0x823a8beb72847261521a3643dc7bb800349707c985750042a52175bdd19c4e83`
+- `okx-defi-invest`: `0x6ea6918bde9bf8d863107cc3719815bcfdbb3d125147c0b00e0d3caf36774bfc`
+
+**Curator (primary orchestrator):** `0x726cf0c4fe559db9a32396161694c7b88c60c947` — [OKLink ↗](https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947) — orchestrates every cycle, settles all x402 agent fees, registers the swarm on the leaderboard.
 
 | Agent      | Role                                      | Address                                      | Explorer                                                                                     | Registration Tx |
 | ---------- | ----------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------- |

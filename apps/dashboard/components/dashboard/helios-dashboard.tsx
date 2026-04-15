@@ -228,7 +228,7 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
             </div>
           </div>
           <p className="mb-6 max-w-5xl text-sm leading-relaxed text-[#94a3b8]">
-            Four AI agents autonomously earn yield, execute trades, pay each other, and compound
+            Four sovereign AI agents autonomously operate their own wallets, earn yield, execute trades, pay each other, and compound
             capital in a self-sustaining DeFi economy via x402 on X Layer. <br /> Capital on
             autopilot.
           </p>

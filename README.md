@@ -5,8 +5,8 @@
 <h1 align="center">Helios</h1>
 
 <p align="center">
-  <strong>A sovereign, self-sustaining multi-agent DeFi economy — where capital never stops working.</strong><br/>
-  Four specialized AI agents — each with its own OKX TEE Agentic Wallet and onchain identity — autonomously find yield, execute trades, manage risk, and compound capital, coordinating via x402 USDG micropayments. No human in the loop. Every cycle is proven onchain.
+  <strong>A self-sustaining multi-agent DeFi economy — where capital never stops working.</strong><br/>
+  Four sovereign AI agents — each with its own OKX TEE Agentic Wallet and onchain identity — autonomously find yield, execute trades, manage risk, and compound capital, coordinating via x402 USDG micropayments. No human in the loop. Every cycle is proven onchain.
 </p>
 
 <p align="center">
@@ -21,10 +21,31 @@
 
 <p align="center">
   <a href="https://heliosfi.xyz/dashboard"><strong>Live Demo</strong></a> ·
-  <a href="https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947"><strong>Primary Agent Wallet (Curator)</strong></a> ·
+  <a href="https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947"><strong> Agent Wallet (Curator: Primary)</strong></a> ·
   <a href="https://www.oklink.com/xlayer/address/0xbA74426e9144bf68f986ec239E32a882843487E7"><strong>HeliosRegistry Contract</strong></a> ·
   <a href="https://heliosfi.xyz/skill.md"><strong>SKILL.md</strong></a>
 </p>
+
+## Onchain Proof
+
+### Agent Wallets (raw + OKLink)
+
+| Agent      | Detailed role                               | Raw address                                  | OKLink |
+| ---------- | ------------------------------------------- | -------------------------------------------- | ------ |
+| Curator    | Orchestrator — cycles, payments, registry   | `0x726cf0c4fe559db9a32396161694c7b88c60c947` | [Link](https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947) |
+| Strategist | Alpha scanner — paid per scan via x402      | `0x3c69ed447ccd8d515e73dd81e6a0f56edd7623ed` | [Link](https://www.oklink.com/xlayer/address/0x3c69ed447ccd8d515e73dd81e6a0f56edd7623ed) |
+| Sentinel   | Risk gate — paid per assessment via x402    | `0x95923bc7280cc182559f2bc7b368c09448726d4f` | [Link](https://www.oklink.com/xlayer/address/0x95923bc7280cc182559f2bc7b368c09448726d4f) |
+| Executor   | Trade + yield execution — paid per deploy   | `0x88a200567d660d88ac0afbe781e9e97b6d570ab6` | [Link](https://www.oklink.com/xlayer/address/0x88a200567d660d88ac0afbe781e9e97b6d570ab6) |
+
+### Live Contract (raw + OKLink)
+
+- HeliosRegistry: `0xbA74426e9144bf68f986ec239E32a882843487E7` · [OKLink](https://www.oklink.com/xlayer/address/0xbA74426e9144bf68f986ec239E32a882843487E7)
+
+### Submission Proof TX (raw + OKLink)
+
+- `okx-x402-payment`: `0x56ef6e584ea32e788e3cef890ef975f67e76000464fd4fa17912b0d9fdfcfe6c` · [OKLink](https://www.oklink.com/xlayer/tx/0x56ef6e584ea32e788e3cef890ef975f67e76000464fd4fa17912b0d9fdfcfe6c)
+- `okx-dex-swap`: `0x823a8beb72847261521a3643dc7bb800349707c985750042a52175bdd19c4e83` · [OKLink](https://www.oklink.com/xlayer/tx/0x823a8beb72847261521a3643dc7bb800349707c985750042a52175bdd19c4e83)
+- `okx-defi-invest`: `0x6ea6918bde9bf8d863107cc3719815bcfdbb3d125147c0b00e0d3caf36774bfc` · [OKLink](https://www.oklink.com/xlayer/tx/0x6ea6918bde9bf8d863107cc3719815bcfdbb3d125147c0b00e0d3caf36774bfc)
 
 ---
 
@@ -32,7 +53,7 @@
 
 DeFi capital on X Layer sits idle most of the time. Yield opportunities change, signals appear and disappear, and managing positions requires constant 24/7 attention and execution no human can sustain.
 
-Helios automates the full workflow. Four specialized AI agents continuously find yield, execute trades, gate risk, and compound profits — funded by their own onchain earnings. After initial seed funding, the system sustains itself. Every agent payment is a real USDG transfer on X Layer. Every cycle produces a txHash. Capital on autopilot.
+Helios automates the full workflow. Four specialized AI agents operate their own wallets to continuously find yield, execute trades, gate risk, and compound profits — funded by their own onchain earnings. After initial seed funding, the system sustains itself. Every agent payment is a real USDG transfer on X Layer. Every cycle produces a txHash. Capital on autopilot.
 
 ---
 
@@ -205,24 +226,14 @@ All 14 OKX OnchainOS skills are used across the four agents. No skill is unused.
 
 ## Onchain Deployments
 
-### Agent Wallets
+### Agent Registration TX (X Layer)
 
-Four independent OKX TEE Agentic Wallets — each agent has its own sovereign onchain identity.
-
-**Primary wallet (Curator):** [`0x726cf0c4fe559db9a32396161694c7b88c60c947`](https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947) — orchestrates every cycle, settles all x402 agent fees, and registers the swarm on the leaderboard.
-
-| Agent      | Role                                      | Address                                                                                                                        | Registration Tx                                                                                                        |
-| ---------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| Curator    | Orchestrator — cycles, payments, registry | [0x726cf0c4fe559db9a32396161694c7b88c60c947](https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947) | [0x2da165...8748](https://www.oklink.com/xlayer/tx/0x2da165488f92f48167e443b7208f5949d049476bb54554893aa78dbb24e98748) |
-| Strategist | Alpha scanner — paid per scan via x402    | [0x3c69ed447ccd8d515e73dd81e6a0f56edd7623ed](https://www.oklink.com/xlayer/address/0x3c69ed447ccd8d515e73dd81e6a0f56edd7623ed) | [0x873446...7e5d](https://www.oklink.com/xlayer/tx/0x8734468148b51b117857c7bb55cca35f9224c813a9cb787aad4429fa0a297e5d) |
-| Sentinel   | Risk gate — paid per assessment via x402  | [0x95923bc7280cc182559f2bc7b368c09448726d4f](https://www.oklink.com/xlayer/address/0x95923bc7280cc182559f2bc7b368c09448726d4f) | [0x85006e...7330](https://www.oklink.com/xlayer/tx/0x85006e74557d47809b373e56032575248841f02492ef1bf02015fd5eb6537330) |
-| Executor   | Trade + yield execution — paid per deploy | [0x88a200567d660d88ac0afbe781e9e97b6d570ab6](https://www.oklink.com/xlayer/address/0x88a200567d660d88ac0afbe781e9e97b6d570ab6) | [0x036f45...bfb4](https://www.oklink.com/xlayer/tx/0x036f4544058691495d99e8917774848877db98e02a2d405d6d4fb845ed58bfb4) |
-
-### Contracts
-
-| Contract           | Address                                      | Network       | Explorer                                                                                     |
-| ------------------ | -------------------------------------------- | ------------- | -------------------------------------------------------------------------------------------- |
-| HeliosRegistry.sol | `0xbA74426e9144bf68f986ec239E32a882843487E7` | X Layer (196) | [OKLink ↗](https://www.oklink.com/xlayer/address/0xbA74426e9144bf68f986ec239E32a882843487E7) |
+| Agent      | Registration Tx |
+| ---------- | --------------- |
+| Curator    | [0x2da165...8748](https://www.oklink.com/xlayer/tx/0x2da165488f92f48167e443b7208f5949d049476bb54554893aa78dbb24e98748) |
+| Strategist | [0x873446...7e5d](https://www.oklink.com/xlayer/tx/0x8734468148b51b117857c7bb55cca35f9224c813a9cb787aad4429fa0a297e5d) |
+| Sentinel   | [0x85006e...7330](https://www.oklink.com/xlayer/tx/0x85006e74557d47809b373e56032575248841f02492ef1bf02015fd5eb6537330) |
+| Executor   | [0x036f45...bfb4](https://www.oklink.com/xlayer/tx/0x036f4544058691495d99e8917774848877db98e02a2d405d6d4fb845ed58bfb4) |
 
 ---
 
@@ -388,7 +399,7 @@ Helios is not a demo. Any developer can clone the repo, run `helios setup`, fund
 ## Team
 
 **Samuel Danso** — Founder & Full-Stack AI Engineer
-me.samueldanso@gmail.com
+me.samueldanso@gmail.com TG: @samueldanso
 
 ---
 
