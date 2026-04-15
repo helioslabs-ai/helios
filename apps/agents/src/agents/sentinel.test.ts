@@ -1,5 +1,34 @@
+import { TOKEN_ADDRESSES } from "@helios/shared/chains";
 import { describe, expect, it } from "vitest";
-import { parseVerdict } from "./sentinel.js";
+import type { AgentConfig } from "../types.js";
+import { parseVerdict, runSentinelAssessment } from "./sentinel.js";
+
+const minimalSentinelConfig = {
+  name: "sentinel",
+  wallet: {
+    accountId: "test",
+    address: "0x0000000000000000000000000000000000000001" as `0x${string}`,
+  },
+  tools: {},
+  llm: { model: "gpt-4o-mini", apiKey: "" },
+  prompts: { strategy: "", budget: "" },
+} as AgentConfig;
+
+describe("runSentinelAssessment allowlist", () => {
+  it("returns CLEAR for WOKB without calling the LLM", async () => {
+    const ctx = {
+      lastN: [],
+      openPositions: [],
+      walletBalances: {} as Record<string, string>,
+      totalCycles: 0,
+      consecutiveNoAlpha: 0,
+    };
+    const r = await runSentinelAssessment(minimalSentinelConfig, "WOKB", TOKEN_ADDRESSES.WOKB, ctx);
+    expect(r.verdict).toBe("CLEAR");
+    expect(r.riskScore).toBeGreaterThanOrEqual(90);
+    expect(r.flags).toContain("allowlisted_major");
+  });
+});
 
 describe("parseVerdict", () => {
   it("parses a CLEAR verdict", () => {

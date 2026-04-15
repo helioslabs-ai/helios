@@ -1,3 +1,4 @@
+import { isXLayerSafeTradeContract } from "@helios/shared/chains";
 import { shouldTakeProfit, shouldTimeStop } from "@helios/shared/guardrails";
 import { generateText } from "../ai/index.js";
 import { buildSentinelBudget, SENTINEL_SYSTEM_PROMPT } from "../prompts/sentinel.js";
@@ -63,6 +64,16 @@ export async function runSentinelAssessment(
   contractAddress: string,
   cycleContext: CycleContext,
 ): Promise<AssessmentResult> {
+  if (contractAddress && isXLayerSafeTradeContract(contractAddress)) {
+    return {
+      verdict: "CLEAR",
+      riskScore: 95,
+      flags: ["allowlisted_major"],
+      reasoning:
+        "Allowlisted X Layer major/stable (USDC, USDG, WOKB, WETH, WBTC) — security scan not required for routing.",
+    };
+  }
+
   const budget = buildSentinelBudget({
     openPositions: JSON.stringify(cycleContext.openPositions),
     riskThreshold: 75,
