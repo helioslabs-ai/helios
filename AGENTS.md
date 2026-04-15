@@ -1,6 +1,6 @@
 # AGENTS.md — Helios
 
-**Helios** is a sovereign, self-sustaining multi-agent DeFi economy on X Layer. Four specialized AI agents autonomously find yield, execute trades, manage risk, and compound capital — coordinating via x402 USDG micropayments with no human in the loop. Every agent payment is onchain proof the pipeline ran. Every cycle produces a txHash. Capital on autopilot.
+**Helios** is a sovereign, self-sustaining multi-agent DeFi economy on X Layer. Four specialized AI agents autonomously find yield, execute trades, manage risk, and compound capital — coordinating via x402 USDG micropayments with no human in the loop. Every agent payment is onchain proof the pipeline ran. Every cycle produces a txHash. Capital on autopilot. 200+ Tx and cycle run
 
 **Built for:** OKX Build X Hackathon — Season 2 · X Layer Arena + Skills Arena
 **Live:** https://heliosfi.xyz/dashboard
@@ -23,8 +23,8 @@
 
 **Curator (primary orchestrator):** `0x726cf0c4fe559db9a32396161694c7b88c60c947` — [OKLink ↗](https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947) — orchestrates every cycle, settles all x402 agent fees, registers the swarm on the leaderboard.
 
-| Agent      | Role                                      | Address                                      | Explorer                                                                                     | Registration Tx |
-| ---------- | ----------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------- |
+| Agent      | Role                                      | Address                                      | Explorer                                                                                     | Registration Tx                                                                                                        |
+| ---------- | ----------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | Curator    | Orchestrator — cycles, payments, registry | `0x726cf0c4fe559db9a32396161694c7b88c60c947` | [OKLink ↗](https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947) | [0x2da165...8748](https://www.oklink.com/xlayer/tx/0x2da165488f92f48167e443b7208f5949d049476bb54554893aa78dbb24e98748) |
 | Strategist | Alpha scanner — paid per scan via x402    | `0x3c69ed447ccd8d515e73dd81e6a0f56edd7623ed` | [OKLink ↗](https://www.oklink.com/xlayer/address/0x3c69ed447ccd8d515e73dd81e6a0f56edd7623ed) | [0x873446...7e5d](https://www.oklink.com/xlayer/tx/0x8734468148b51b117857c7bb55cca35f9224c813a9cb787aad4429fa0a297e5d) |
 | Sentinel   | Risk gate — paid per assessment via x402  | `0x95923bc7280cc182559f2bc7b368c09448726d4f` | [OKLink ↗](https://www.oklink.com/xlayer/address/0x95923bc7280cc182559f2bc7b368c09448726d4f) | [0x85006e...7330](https://www.oklink.com/xlayer/tx/0x85006e74557d47809b373e56032575248841f02492ef1bf02015fd5eb6537330) |

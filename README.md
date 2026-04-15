@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>A self-sustaining multi-agent DeFi economy — where capital never stops working.</strong><br/>
-  Four sovereign AI agents — each with its own OKX TEE Agentic Wallet and onchain identity — autonomously find yield, execute trades, manage risk, and compound capital, coordinating via x402 USDG micropayments. No human in the loop. Every cycle is proven onchain.
+  Four sovereign AI agents — each with its own OKX TEE Agentic Wallet and onchain identity — autonomously find yield, execute trades, manage risk, and compound capital, coordinating via x402 USDG micropayments. No human in the loop. Every cycle is proven onchain — 200+ TNX and cycles
 </p>
 
 <p align="center">
@@ -21,7 +21,7 @@
 
 <p align="center">
   <a href="https://heliosfi.xyz/dashboard"><strong>Live Demo</strong></a> ·
-  <a href="https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947"><strong> Agent Wallet (Curator: Primary)</strong></a> ·
+  <a href="https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947/token-transfer"><strong> Agent Wallet (Curator: Primary)</strong></a> ·
   <a href="https://www.oklink.com/xlayer/address/0xbA74426e9144bf68f986ec239E32a882843487E7"><strong>HeliosRegistry Contract</strong></a> ·
   <a href="https://heliosfi.xyz/skill.md"><strong>SKILL.md</strong></a>
 </p>
@@ -32,10 +32,10 @@
 
 | Agent      | Detailed role                               | Raw address                                  | OKLink |
 | ---------- | ------------------------------------------- | -------------------------------------------- | ------ |
-| Curator    | Orchestrator — cycles, payments, registry   | `0x726cf0c4fe559db9a32396161694c7b88c60c947` | [Link](https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947) |
+| Curator    | Orchestrator — cycles, payments, registry   | `0x726cf0c4fe559db9a32396161694c7b88c60c947` | [Link](https://www.oklink.com/xlayer/address/0x726cf0c4fe559db9a32396161694c7b88c60c947/token-transfer) |
 | Strategist | Alpha scanner — paid per scan via x402      | `0x3c69ed447ccd8d515e73dd81e6a0f56edd7623ed` | [Link](https://www.oklink.com/xlayer/address/0x3c69ed447ccd8d515e73dd81e6a0f56edd7623ed) |
 | Sentinel   | Risk gate — paid per assessment via x402    | `0x95923bc7280cc182559f2bc7b368c09448726d4f` | [Link](https://www.oklink.com/xlayer/address/0x95923bc7280cc182559f2bc7b368c09448726d4f) |
-| Executor   | Trade + yield execution — paid per deploy   | `0x88a200567d660d88ac0afbe781e9e97b6d570ab6` | [Link](https://www.oklink.com/xlayer/address/0x88a200567d660d88ac0afbe781e9e97b6d570ab6) |
+| Executor   | Trade + yield execution — paid per deploy   | `0x88a200567d660d88ac0afbe781e9e97b6d570ab6` | [Link](https://www.oklink.com/xlayer/address/0x88a200567d660d88ac0afbe781e9e97b6d570ab6/aa) |
 
 ### Live Contract (raw + OKLink)
 
