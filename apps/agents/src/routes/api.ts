@@ -8,6 +8,7 @@ import { buildAgentConfigs } from "../config.js";
 import { resolveAgentWalletAddress } from "../constants/agent-wallets.js";
 import { getDb } from "../db/client.js";
 import {
+  type AgentTxRow,
   aggregateEconomyFromDb,
   buildTransactionRowsFromDb,
   countCycleRows,
@@ -15,10 +16,9 @@ import {
   dbCycleToSummary,
   fetchCyclesNewestFirst,
   formatEconomyEntryContext,
-  type AgentTxRow,
 } from "../db/historical-queries.js";
 import type { HeliosRegistryInsert } from "../db/schema/index.js";
-import { heliosRegistry } from "../db/schema/index.js";
+import { heliosRegistry, positions } from "../db/schema/index.js";
 import {
   getState,
   haltSwarm,
@@ -108,10 +108,7 @@ function buildTransactionsFromFiles(): AgentTxRow[] {
   for (const e of entryRows) {
     const cycle = cycleById.get(e.cycleId);
     txRows.push({
-      txHash:
-        e.txHash && e.txHash.startsWith("0x")
-          ? e.txHash
-          : `econ:${e.cycleId}:${e.ts}:${e.to}`,
+      txHash: e.txHash?.startsWith("0x") ? e.txHash : `econ:${e.cycleId}:${e.ts}:${e.to}`,
       ts: e.ts,
       cycleId: e.cycleId,
       action: (cycle?.action ?? "hold") as CycleAction,
@@ -250,11 +247,47 @@ api.get("/economy", async (c) => {
 });
 
 api.get("/positions", (c) => {
-  const positions = readJson<Position[]>("positions.json", []);
   const yieldPosition = readJson<unknown>("yield.json", null);
+  const db = getDb();
+
+  if (db) {
+    return db
+      .select()
+      .from(positions)
+      .orderBy(desc(positions.openedAt))
+      .then((rows) => {
+        const mapped: Position[] = rows.map((row) => ({
+          token: row.token,
+          contractAddress: row.tokenAddress,
+          entryPrice: row.token === "USDG" || row.token === "USDC" ? "1" : "0",
+          sizeUsdc: row.sizeUsdc,
+          entryTxHash: row.entryTxHash ?? "",
+          exitTxHash: row.exitTxHash ?? undefined,
+          enteredAt: row.openedAt.toISOString(),
+          exitedAt: row.closedAt?.toISOString(),
+          status: row.status === "closed" ? "closed" : "open",
+        }));
+        return c.json({
+          openPositions: mapped.filter((p) => p.status === "open"),
+          closedPositions: mapped.filter((p) => p.status === "closed"),
+          yieldPosition,
+        });
+      })
+      .catch((err) => {
+        console.warn("[API] /positions DB read failed, using files:", err);
+        const localPositions = readJson<Position[]>("positions.json", []);
+        return c.json({
+          openPositions: localPositions.filter((p) => p.status === "open"),
+          closedPositions: localPositions.filter((p) => p.status === "closed"),
+          yieldPosition,
+        });
+      });
+  }
+
+  const localPositions = readJson<Position[]>("positions.json", []);
   return c.json({
-    openPositions: positions.filter((p) => p.status === "open"),
-    closedPositions: positions.filter((p) => p.status === "closed"),
+    openPositions: localPositions.filter((p) => p.status === "open"),
+    closedPositions: localPositions.filter((p) => p.status === "closed"),
     yieldPosition,
   });
 });

@@ -312,6 +312,8 @@ export async function preTransactionUnsignedInfoContractCall(params: {
   gasLimit?: string;
   aaDexTokenAddr?: string;
   aaDexTokenAmount?: string;
+  signatureData?: string;
+  skipWarning?: boolean;
 }): Promise<PreTxUnsignedInfo> {
   const session = await getSession(params.accountId);
 
@@ -331,6 +333,8 @@ export async function preTransactionUnsignedInfoContractCall(params: {
       ...(params.gasLimit ? { gasLimit: params.gasLimit } : {}),
       ...(params.aaDexTokenAddr ? { aaDexTokenAddr: params.aaDexTokenAddr } : {}),
       ...(params.aaDexTokenAmount ? { aaDexTokenAmount: params.aaDexTokenAmount } : {}),
+      ...(params.signatureData ? { signatureData: params.signatureData } : {}),
+      ...(params.skipWarning ? { skipWarning: true } : {}),
     },
     jwtHeaders(session.accessToken),
   );
@@ -341,6 +345,7 @@ export async function signAndBroadcast(params: {
   address: string;
   chainIndex: string;
   unsignedInfo: PreTxUnsignedInfo;
+  checkBalance?: boolean;
 }): Promise<{ pkgId: string; orderId: string; txHash: string }> {
   const session = await getSession(params.accountId);
   const seed = await hpkeDecryptSessionSk(session.encryptedSessionSk, session.sessionPrivateKey);
@@ -367,7 +372,7 @@ export async function signAndBroadcast(params: {
 
   const extraDataObj: Record<string, unknown> = {
     ...(typeof params.unsignedInfo.extraData === "object" ? params.unsignedInfo.extraData : {}),
-    checkBalance: true,
+    checkBalance: params.checkBalance ?? true,
     uopHash: params.unsignedInfo.uopHash,
     encoding: params.unsignedInfo.encoding,
     signType: params.unsignedInfo.signType,

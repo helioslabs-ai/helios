@@ -6,6 +6,18 @@ import { allItems, CHAIN_INDEX, firstItem, okxFetch } from "./okx-client.js";
 
 const XLAYER_CHAIN_INDEX = 196;
 
+function minimalToReadable(amountMinimal: string, decimals: number): string {
+  const clean = amountMinimal.trim();
+  if (!/^\d+$/.test(clean)) return amountMinimal;
+  const value = BigInt(clean);
+  const scale = 10n ** BigInt(decimals);
+  const whole = value / scale;
+  const fraction = value % scale;
+  if (fraction === 0n) return whole.toString();
+  const fractionStr = fraction.toString().padStart(decimals, "0").replace(/0+$/, "");
+  return `${whole.toString()}.${fractionStr}`;
+}
+
 export const okxDefiSearch = tool({
   description:
     "Search for DeFi yield opportunities on X Layer. Returns investment products with APY, platform, token, and investment ID. Use to find Aave V3 USDG positions on X Layer (investmentId: 33906).",
@@ -49,26 +61,30 @@ export const okxDefiInvest = tool({
     const t = token.toUpperCase();
     const tokenAddress =
       t === "USDC" ? XLAYER_USDC : t === "USDG" ? XLAYER_USDG : (TOKEN_ADDRESSES[t] ?? token);
-    // /api/v6/defi/transaction/enter expects userWalletAddress + userInputList (not investToken/investAmount).
+    const readableAmount = minimalToReadable(amount, 6);
+    // /api/v6/defi/transaction/enter expects address + userInputList on X Layer.
     const body = {
       chainIndex: CHAIN_INDEX,
       investmentId,
-      userWalletAddress: address,
-      slippagePercent: slippage,
+      address,
+      slippage,
       userInputList: [
         {
           chainIndex: String(CHAIN_INDEX),
           tokenAddress,
           tokenPrecision: "6",
-          coinAmount: amount,
+          coinAmount: readableAmount,
         },
       ],
     };
-    const json = await okxFetch<{ data?: unknown[] }>("/api/v6/defi/transaction/enter", {
-      method: "POST",
-      body,
-    });
-    return firstItem(json);
+    const json = await okxFetch<{ data?: { dataList?: unknown[] } }>(
+      "/api/v6/defi/transaction/enter",
+      {
+        method: "POST",
+        body,
+      },
+    );
+    return (json.data?.dataList ?? [])[0] ?? null;
   },
 });
 
@@ -103,6 +119,7 @@ interface DefiTxEntry {
   to: string;
   value: string;
   serializedData: string;
+  signatureData?: string;
 }
 
 /** Known Aave V3 USDG single-earn on X Layer (OKX product id). */
@@ -146,6 +163,29 @@ export interface DefiDepositTeeParams {
   slippage?: string;
 }
 
+/** OKX wallet may return 20008 "another order processing" if a prior tx is still settling (e.g. after a swap). */
+async function signAndBroadcastWithConcurrencyRetry(
+  params: Parameters<typeof signAndBroadcast>[0],
+): Promise<{ pkgId: string; orderId: string; txHash: string }> {
+  const maxAttempts = 6;
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await signAndBroadcast(params);
+    } catch (e) {
+      lastErr = e;
+      const msg = e instanceof Error ? e.message : String(e);
+      const retryable =
+        msg.includes("20008") ||
+        msg.includes("another order processing") ||
+        msg.toLowerCase().includes("order processing");
+      if (!retryable) throw e;
+      await new Promise((r) => setTimeout(r, 1200 * attempt));
+    }
+  }
+  throw lastErr;
+}
+
 /**
  * Programmatic Aave deposit (same path as okxDefiDeposit tool). Logs full errors — never swallow.
  */
@@ -158,28 +198,29 @@ export async function executeDefiDepositTee(params: DefiDepositTeeParams): Promi
   const t = token.toUpperCase();
   const tokenAddress =
     t === "USDC" ? XLAYER_USDC : t === "USDG" ? XLAYER_USDG : (TOKEN_ADDRESSES[t] ?? token);
+  const readableAmount = minimalToReadable(amount, 6);
   const investBody = {
     chainIndex: CHAIN_INDEX,
     investmentId,
-    userWalletAddress: walletAddress,
-    slippagePercent: slippage,
+    address: walletAddress,
+    slippage,
     userInputList: [
       {
         chainIndex: String(CHAIN_INDEX),
         tokenAddress,
         tokenPrecision: "6",
-        coinAmount: amount,
+        coinAmount: readableAmount,
       },
     ],
   };
 
   try {
-    const investJson = await okxFetch<{ dataList?: DefiTxEntry[] }>(
+    const investJson = await okxFetch<{ data?: { dataList?: DefiTxEntry[] } }>(
       "/api/v6/defi/transaction/enter",
       { method: "POST", body: investBody },
     );
 
-    const txList = investJson.dataList ?? [];
+    const txList = investJson.data?.dataList ?? [];
     if (txList.length === 0) {
       const err = new Error(
         `No DeFi transaction data returned. investBody=${JSON.stringify(investBody)} raw=${JSON.stringify(investJson)}`,
@@ -190,8 +231,12 @@ export async function executeDefiDepositTee(params: DefiDepositTeeParams): Promi
 
     let depositTxHash = "";
     let depositOrderId = "";
+    let stepIndex = 0;
 
     for (const tx of txList) {
+      if (stepIndex++ > 0) {
+        await new Promise((r) => setTimeout(r, 800));
+      }
       const hexVal = tx.value ?? "0x0";
       const decimalAmount = hexVal.startsWith("0x") ? BigInt(hexVal).toString() : hexVal;
 
@@ -204,11 +249,12 @@ export async function executeDefiDepositTee(params: DefiDepositTeeParams): Promi
         inputData: tx.serializedData,
       });
 
-      const result = await signAndBroadcast({
+      const result = await signAndBroadcastWithConcurrencyRetry({
         accountId,
         address: walletAddress,
         chainIndex: CHAIN_INDEX,
         unsignedInfo,
+        checkBalance: false,
       });
 
       if (tx.callDataType === "DEPOSIT") {

@@ -1,8 +1,9 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { XLAYER_USDG } from "@helios/shared/chains";
 import { GUARDRAILS, maxTradeSize } from "@helios/shared/guardrails";
 import { getDb } from "../db/client.js";
-import { cycles, economyEntries } from "../db/schema/index.js";
+import { cycles, economyEntries, positions } from "../db/schema/index.js";
 import { buildCycleContext } from "../memory/index.js";
 import { logCycleOnChain } from "../registry.js";
 import {
@@ -260,7 +261,7 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
           contractAddress: scan.topContract ?? "",
           entryPrice: "0",
           sizeUsdc: deploy.sizeUsdc ?? sizeUsdc,
-          entryTxHash: execTxs[execTxs.length - 1] ?? null,
+          entryTxHash: execTxs[execTxs.length - 1] ?? "",
           enteredAt: new Date().toISOString(),
           status: "open",
         });
@@ -338,6 +339,15 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
           txHash: parkTxs[parkTxs.length - 1] ?? null,
         }),
       );
+      writePosition({
+        token: "USDG",
+        contractAddress: XLAYER_USDG,
+        entryPrice: "1",
+        sizeUsdc: yieldAmountUsdc,
+        entryTxHash: parkTxs[parkTxs.length - 1] ?? "",
+        enteredAt: new Date().toISOString(),
+        status: "open",
+      });
     }
     action = "yield_park";
     recordNoAlpha();
@@ -390,9 +400,39 @@ function readPositions(): Position[] {
 }
 
 function writePosition(position: Position): void {
-  const positions = readPositions();
-  positions.push(position);
-  writeFileSync(join(DATA_DIR, "positions.json"), JSON.stringify(positions, null, 2));
+  const currentPositions = readPositions();
+  currentPositions.push(position);
+  writeFileSync(join(DATA_DIR, "positions.json"), JSON.stringify(currentPositions, null, 2));
+
+  const db = getDb();
+  if (!db) return;
+
+  const id = position.entryTxHash || crypto.randomUUID();
+  void db
+    .insert(positions)
+    .values({
+      id,
+      token: position.token,
+      tokenAddress: position.contractAddress,
+      sizeUsdc: position.sizeUsdc,
+      entryTxHash: position.entryTxHash,
+      exitTxHash: position.exitTxHash ?? null,
+      status: position.status,
+      openedAt: new Date(position.enteredAt),
+      closedAt: position.exitedAt ? new Date(position.exitedAt) : null,
+      reasoning: null,
+    })
+    .onConflictDoUpdate({
+      target: positions.id,
+      set: {
+        status: position.status,
+        exitTxHash: position.exitTxHash ?? null,
+        closedAt: position.exitedAt ? new Date(position.exitedAt) : null,
+      },
+    })
+    .catch((err) => {
+      console.warn("[Curator] positions DB insert failed:", err);
+    });
 }
 
 function checkSessionLoss(): void {
