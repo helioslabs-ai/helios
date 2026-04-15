@@ -44,6 +44,7 @@ export type Position = {
   entryTxHash: string;
   enteredAt: string;
   status: PositionStatus;
+  exitedAt?: string;
   exitCondition?: ExitCondition;
   exitTxHash?: string;
   pnlPct?: number;

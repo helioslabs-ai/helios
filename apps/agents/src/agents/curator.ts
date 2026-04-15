@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { XLAYER_USDG } from "@helios/shared/chains";
 import { GUARDRAILS, maxTradeSize } from "@helios/shared/guardrails";
 import { getDb } from "../db/client.js";
-import { cycles, economyEntries, positions } from "../db/schema/index.js";
+import { cycles, economyEntries, positions, yieldState } from "../db/schema/index.js";
 import { buildCycleContext } from "../memory/index.js";
 import { logCycleOnChain } from "../registry.js";
 import {
@@ -329,16 +329,15 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
       }
       // A7: write yield position to yield.json
       const yieldAmountUsdc = park.sizeUsdc ?? cycleContext.walletBalances.executor ?? "0";
-      writeFileSync(
-        join(DATA_DIR, "yield.json"),
-        JSON.stringify({
-          platform: "Aave V3",
-          amountUsdc: yieldAmountUsdc,
-          apy: "0.12",
-          depositedAt: new Date().toISOString(),
-          txHash: parkTxs[parkTxs.length - 1] ?? null,
-        }),
-      );
+      const yieldPayload = {
+        platform: "Aave V3" as const,
+        amountUsdc: yieldAmountUsdc,
+        apy: "0.12",
+        depositedAt: new Date().toISOString(),
+        txHash: parkTxs[parkTxs.length - 1] ?? null,
+      };
+      writeFileSync(join(DATA_DIR, "yield.json"), JSON.stringify(yieldPayload));
+      persistYieldToDb(yieldPayload);
       writePosition({
         token: "USDG",
         contractAddress: XLAYER_USDG,
@@ -397,6 +396,42 @@ function readPositions(): Position[] {
   } catch {
     return [];
   }
+}
+
+function persistYieldToDb(y: {
+  platform: string;
+  amountUsdc: string;
+  apy: string;
+  depositedAt: string;
+  txHash: string | null;
+}): void {
+  const db = getDb();
+  if (!db) return;
+  void db
+    .insert(yieldState)
+    .values({
+      id: "default",
+      platform: y.platform,
+      amountUsdc: y.amountUsdc,
+      apy: y.apy,
+      depositedAt: new Date(y.depositedAt),
+      txHash: y.txHash,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: yieldState.id,
+      set: {
+        platform: y.platform,
+        amountUsdc: y.amountUsdc,
+        apy: y.apy,
+        depositedAt: new Date(y.depositedAt),
+        txHash: y.txHash,
+        updatedAt: new Date(),
+      },
+    })
+    .catch((err) => {
+      console.warn("[Curator] yield_state DB upsert failed:", err);
+    });
 }
 
 function writePosition(position: Position): void {

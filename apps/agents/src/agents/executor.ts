@@ -1,5 +1,5 @@
 import { XLAYER_USDC, XLAYER_USDG } from "@helios/shared/chains";
-import { GUARDRAILS } from "@helios/shared/guardrails";
+import { GUARDRAILS, yieldParkSpendUsd } from "@helios/shared/guardrails";
 import { generateText } from "../ai/index.js";
 import { buildExecutorBudget, EXECUTOR_SYSTEM_PROMPT } from "../prompts/executor.js";
 import {
@@ -11,8 +11,23 @@ import { okxSwapFull } from "../tools/okx-dex-swap.js";
 import type { AgentConfig, CycleContext, Position } from "../types.js";
 import { getWalletTokenBalances } from "../wallet/index.js";
 
-/** Keep gas/spend headroom before parking (matches executor budget narrative). */
-const YIELD_PARK_LIQUID_RESERVE_USD = 1.0;
+function yieldParkReserveUsd(): number {
+  const raw = process.env.HELIOS_YIELD_PARK_RESERVE_USD?.trim();
+  if (raw) {
+    const n = Number.parseFloat(raw);
+    if (!Number.isNaN(n) && n >= 0) return n;
+  }
+  return 0.5;
+}
+
+function yieldParkMaxUsd(): number {
+  const raw = process.env.HELIOS_YIELD_PARK_MAX_USD?.trim();
+  if (raw) {
+    const n = Number.parseFloat(raw);
+    if (!Number.isNaN(n) && n > 0) return n;
+  }
+  return GUARDRAILS.YIELD_PARK_MAX_USD;
+}
 
 export type DeployResult = {
   action: "buy" | "yield_park" | "sell";
@@ -101,17 +116,19 @@ export async function runUnconditionalYieldParkDeposit(
 
   const rawUsdc = parseFloat(balances.balanceUsdc) || 0;
   const rawUsdg = parseFloat(balances.balanceUsdg) || 0;
-  const usableUsdc = Math.max(0, rawUsdc - YIELD_PARK_LIQUID_RESERVE_USD);
-  const usableUsdg = Math.max(0, rawUsdg - 0.25);
-  const minUsd = GUARDRAILS.MIN_TRADE_SIZE_USD;
+  const reserve = yieldParkReserveUsd();
+  const usableUsdc = Math.max(0, rawUsdc - reserve);
+  const usableUsdg = Math.max(0, rawUsdg - 0.1);
+  const maxLeg = yieldParkMaxUsd();
+  const spendUsdc = yieldParkSpendUsd(usableUsdc, maxLeg);
 
-  if (usableUsdc >= minUsd) {
+  if (spendUsdc > 0) {
     const envId = process.env.HELIOS_AAVE_USDC_INVESTMENT_ID?.trim();
     const investmentId =
       envId || (await findAaveInvestmentIdForToken("USDC").catch(() => null)) || null;
     if (investmentId) {
       try {
-        const amount = humanStableToAtomic6(String(usableUsdc));
+        const amount = humanStableToAtomic6(String(spendUsdc));
         const r = await executeDefiDepositTee({
           investmentId,
           walletAddress: address,
@@ -123,7 +140,7 @@ export async function runUnconditionalYieldParkDeposit(
           action: "yield_park",
           txHash: r.txHash,
           token: "USDC",
-          sizeUsdc: usableUsdc.toFixed(2),
+          sizeUsdc: spendUsdc.toFixed(2),
           reasoning: `Unconditional Aave deposit (USDC) tx=${r.txHash}`,
         };
       } catch (err) {
@@ -135,7 +152,7 @@ export async function runUnconditionalYieldParkDeposit(
       );
       try {
         if (!okxSwapFull.execute) throw new Error("okxSwapFull tool missing execute()");
-        const swapSell = Math.max(minUsd, Math.min(usableUsdc, 1.0));
+        const swapSell = spendUsdc;
         const swap = await okxSwapFull.execute(
           {
             fromToken: XLAYER_USDC,
@@ -176,11 +193,12 @@ export async function runUnconditionalYieldParkDeposit(
     }
   }
 
-  if (usableUsdg < minUsd) {
+  const spendUsdg = yieldParkSpendUsd(usableUsdg, maxLeg);
+  if (spendUsdg <= 0) {
     return {
       action: "yield_park",
       txHash: null,
-      reasoning: `Below minimum deposit ($${minUsd}) after reserve. USDC≈${rawUsdc.toFixed(4)} USDG≈${rawUsdg.toFixed(4)}`,
+      reasoning: `Below minimum yield-park leg ($${GUARDRAILS.YIELD_PARK_MIN_USD}) after reserve. USDC≈${rawUsdc.toFixed(4)} USDG≈${rawUsdg.toFixed(4)}`,
     };
   }
 
@@ -190,7 +208,7 @@ export async function runUnconditionalYieldParkDeposit(
       envId ||
       (await findAaveInvestmentIdForToken("USDG").catch(() => null)) ||
       DEFAULT_AAVE_USDG_INVESTMENT_ID;
-    const amount = humanStableToAtomic6(String(usableUsdg));
+    const amount = humanStableToAtomic6(String(spendUsdg));
     const r = await executeDefiDepositTee({
       investmentId,
       walletAddress: address,
@@ -202,7 +220,7 @@ export async function runUnconditionalYieldParkDeposit(
       action: "yield_park",
       txHash: r.txHash,
       token: "USDG",
-      sizeUsdc: usableUsdg.toFixed(2),
+      sizeUsdc: spendUsdg.toFixed(2),
       reasoning: `Unconditional Aave deposit (USDG) tx=${r.txHash}`,
     };
   } catch (err) {

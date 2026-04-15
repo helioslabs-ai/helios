@@ -21,6 +21,10 @@
 
 **Branch:** `phase/agents-improvements`
 
+### Latest (2026-04-15)
+
+- [x] Yield-park leg capped (~$0.05–$0.10) + configurable reserve; `yield_state` table + curator upsert; `/api/positions` reads yield from DB; `bun run db:sync-files` backfill script. Deploy: `bun run db:push` on host with `DATABASE_URL`.
+
 ### Critical bugs
 
 - [x] **A1 — Strategy injection ignored** — fixed: uses `config.prompts.strategy`
