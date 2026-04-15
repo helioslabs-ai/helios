@@ -1,3 +1,4 @@
+import { XLAYER_USDC, XLAYER_USDG } from "@helios/shared/chains";
 import { GUARDRAILS } from "@helios/shared/guardrails";
 import { generateText } from "../ai/index.js";
 import { buildExecutorBudget, EXECUTOR_SYSTEM_PROMPT } from "../prompts/executor.js";
@@ -6,6 +7,7 @@ import {
   executeDefiDepositTee,
   findAaveInvestmentIdForToken,
 } from "../tools/okx-defi-invest.js";
+import { okxSwapFull } from "../tools/okx-dex-swap.js";
 import type { AgentConfig, CycleContext, Position } from "../types.js";
 import { getWalletTokenBalances } from "../wallet/index.js";
 
@@ -15,6 +17,7 @@ const YIELD_PARK_LIQUID_RESERVE_USD = 1.0;
 export type DeployResult = {
   action: "buy" | "yield_park" | "sell";
   txHash: string | null;
+  txHashes?: string[];
   token?: string;
   sizeUsdc?: string;
   reasoning: string;
@@ -127,7 +130,49 @@ export async function runUnconditionalYieldParkDeposit(
         console.error("[runUnconditionalYieldParkDeposit] USDC deposit failed:", err);
       }
     } else {
-      console.warn("[runUnconditionalYieldParkDeposit] No USDC Aave investmentId; trying USDG");
+      console.warn(
+        "[runUnconditionalYieldParkDeposit] No USDC Aave investmentId; swapping USDC→USDG then depositing USDG",
+      );
+      try {
+        if (!okxSwapFull.execute) throw new Error("okxSwapFull tool missing execute()");
+        const swapSell = Math.max(minUsd, Math.min(usableUsdc, 1.0));
+        const swap = await okxSwapFull.execute(
+          {
+            fromToken: XLAYER_USDC,
+            toToken: XLAYER_USDG,
+            readableAmount: swapSell.toFixed(2),
+            walletAddress: address,
+            accountId,
+            slippage: "0.5",
+          },
+          // tool wrapper ignores options
+          {} as never,
+        );
+        const toTokenAmount = String((swap as { toTokenAmount?: string }).toTokenAmount ?? "0");
+        const depositInvestmentId =
+          process.env.HELIOS_AAVE_USDG_INVESTMENT_ID?.trim() ||
+          (await findAaveInvestmentIdForToken("USDG").catch(() => null)) ||
+          DEFAULT_AAVE_USDG_INVESTMENT_ID;
+        const dep = await executeDefiDepositTee({
+          investmentId: depositInvestmentId,
+          walletAddress: address,
+          accountId,
+          token: "USDG",
+          amount: toTokenAmount,
+        });
+        return {
+          action: "yield_park",
+          txHash: dep.txHash,
+          txHashes: [String((swap as { txHash?: string }).txHash ?? ""), dep.txHash].filter(
+            Boolean,
+          ),
+          token: "USDG",
+          sizeUsdc: swapSell.toFixed(2),
+          reasoning: `Swap USDC→USDG tx=${(swap as { txHash?: string }).txHash ?? "?"}; Aave deposit (USDG) tx=${dep.txHash}`,
+        };
+      } catch (err) {
+        console.error("[runUnconditionalYieldParkDeposit] USDC→USDG swap+deposit failed:", err);
+      }
     }
   }
 

@@ -234,25 +234,33 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
 
       const deploy = deployResult.body as {
         txHash?: string | null;
+        txHashes?: string[];
         token?: string;
         sizeUsdc?: string;
         reasoning?: string;
       };
-      if (deploy.txHash) {
-        txHashes.push(deploy.txHash);
-        transactions.push({
-          txHash: deploy.txHash,
-          kind: "trade",
-          agent: "executor",
-          context: `Executor bought ${deploy.token ?? scan.topToken ?? "asset"}`,
-        });
+      const execTxs = Array.isArray(deploy.txHashes)
+        ? deploy.txHashes.filter((h): h is string => typeof h === "string" && h.startsWith("0x"))
+        : deploy.txHash
+          ? [deploy.txHash]
+          : [];
+      if (execTxs.length > 0) {
+        for (const h of execTxs) {
+          txHashes.push(h);
+          transactions.push({
+            txHash: h,
+            kind: "trade",
+            agent: "executor",
+            context: `Executor deployed ${deploy.token ?? scan.topToken ?? "asset"}`,
+          });
+        }
         // A2: write open position to positions.json
         writePosition({
           token: deploy.token ?? scan.topToken ?? "unknown",
           contractAddress: scan.topContract ?? "",
           entryPrice: "0",
           sizeUsdc: deploy.sizeUsdc ?? sizeUsdc,
-          entryTxHash: deploy.txHash,
+          entryTxHash: execTxs[execTxs.length - 1] ?? null,
           enteredAt: new Date().toISOString(),
           status: "open",
         });
@@ -298,15 +306,26 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
       });
     }
 
-    const park = parkResult.body as { txHash?: string | null; sizeUsdc?: string };
-    if (park.txHash) {
-      txHashes.push(park.txHash);
-      transactions.push({
-        txHash: park.txHash,
-        kind: "yield_deposit",
-        agent: "executor",
-        context: "Executor deposited idle USDC to Aave V3",
-      });
+    const park = parkResult.body as {
+      txHash?: string | null;
+      txHashes?: string[];
+      sizeUsdc?: string;
+    };
+    const parkTxs = Array.isArray(park.txHashes)
+      ? park.txHashes.filter((h): h is string => typeof h === "string" && h.startsWith("0x"))
+      : park.txHash
+        ? [park.txHash]
+        : [];
+    if (parkTxs.length > 0) {
+      for (const h of parkTxs) {
+        txHashes.push(h);
+        transactions.push({
+          txHash: h,
+          kind: "yield_deposit",
+          agent: "executor",
+          context: "Executor deposited idle capital to Aave V3",
+        });
+      }
       // A7: write yield position to yield.json
       const yieldAmountUsdc = park.sizeUsdc ?? cycleContext.walletBalances.executor ?? "0";
       writeFileSync(
@@ -316,7 +335,7 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
           amountUsdc: yieldAmountUsdc,
           apy: "0.12",
           depositedAt: new Date().toISOString(),
-          txHash: park.txHash,
+          txHash: parkTxs[parkTxs.length - 1] ?? null,
         }),
       );
     }

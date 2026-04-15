@@ -1,6 +1,7 @@
+import { TOKEN_ADDRESSES, XLAYER_USDC, XLAYER_USDG } from "@helios/shared/chains";
 import { z } from "zod";
 import { tool } from "../ai/tool.js";
-import { preTransactionUnsignedInfo, signAndBroadcast } from "../wallet/index.js";
+import { preTransactionUnsignedInfoContractCall, signAndBroadcast } from "../wallet/index.js";
 import { allItems, CHAIN_INDEX, firstItem, okxFetch } from "./okx-client.js";
 
 const XLAYER_CHAIN_INDEX = 196;
@@ -45,13 +46,23 @@ export const okxDefiInvest = tool({
     slippage: z.string().default("0.01"),
   }),
   execute: async ({ investmentId, address, token, amount, slippage }) => {
+    const t = token.toUpperCase();
+    const tokenAddress =
+      t === "USDC" ? XLAYER_USDC : t === "USDG" ? XLAYER_USDG : (TOKEN_ADDRESSES[t] ?? token);
+    // /api/v6/defi/transaction/enter expects userWalletAddress + userInputList (not investToken/investAmount).
     const body = {
       chainIndex: CHAIN_INDEX,
       investmentId,
-      investAddress: address,
-      investToken: token,
-      investAmount: amount,
-      slippage,
+      userWalletAddress: address,
+      slippagePercent: slippage,
+      userInputList: [
+        {
+          chainIndex: String(CHAIN_INDEX),
+          tokenAddress,
+          tokenPrecision: "6",
+          coinAmount: amount,
+        },
+      ],
     };
     const json = await okxFetch<{ data?: unknown[] }>("/api/v6/defi/transaction/enter", {
       method: "POST",
@@ -144,13 +155,22 @@ export async function executeDefiDepositTee(params: DefiDepositTeeParams): Promi
   investmentId: string;
 }> {
   const { investmentId, walletAddress, accountId, token, amount, slippage = "0.01" } = params;
+  const t = token.toUpperCase();
+  const tokenAddress =
+    t === "USDC" ? XLAYER_USDC : t === "USDG" ? XLAYER_USDG : (TOKEN_ADDRESSES[t] ?? token);
   const investBody = {
     chainIndex: CHAIN_INDEX,
     investmentId,
-    investAddress: walletAddress,
-    investToken: token,
-    investAmount: amount,
-    slippage,
+    userWalletAddress: walletAddress,
+    slippagePercent: slippage,
+    userInputList: [
+      {
+        chainIndex: String(CHAIN_INDEX),
+        tokenAddress,
+        tokenPrecision: "6",
+        coinAmount: amount,
+      },
+    ],
   };
 
   try {
@@ -175,12 +195,12 @@ export async function executeDefiDepositTee(params: DefiDepositTeeParams): Promi
       const hexVal = tx.value ?? "0x0";
       const decimalAmount = hexVal.startsWith("0x") ? BigInt(hexVal).toString() : hexVal;
 
-      const unsignedInfo = await preTransactionUnsignedInfo({
+      const unsignedInfo = await preTransactionUnsignedInfoContractCall({
         accountId,
         chainIndex: XLAYER_CHAIN_INDEX,
         fromAddr: walletAddress,
-        toAddr: tx.to,
-        amount: decimalAmount,
+        contractAddr: tx.to,
+        amt: decimalAmount,
         inputData: tx.serializedData,
       });
 

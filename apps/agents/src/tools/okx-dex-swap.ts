@@ -1,6 +1,7 @@
+import { TOKEN_ADDRESSES, XLAYER_USDC, XLAYER_USDG } from "@helios/shared/chains";
 import { z } from "zod";
 import { tool } from "../ai/tool.js";
-import { preTransactionUnsignedInfo, signAndBroadcast } from "../wallet/index.js";
+import { preTransactionUnsignedInfoContractCall, signAndBroadcast } from "../wallet/index.js";
 import { CHAIN_INDEX, firstItem, okxFetch } from "./okx-client.js";
 
 const EVM_NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
@@ -12,6 +13,28 @@ function resolveToken(t: string): string {
 
 function isNative(addr: string): boolean {
   return addr.toLowerCase() === EVM_NATIVE;
+}
+
+function getKnownDecimals(addr: string): number | null {
+  const a = addr.toLowerCase();
+  if (a === XLAYER_USDC.toLowerCase()) return 6;
+  if (a === XLAYER_USDG.toLowerCase()) return 6;
+  if (a === TOKEN_ADDRESSES.WOKB.toLowerCase()) return 18;
+  if (a === TOKEN_ADDRESSES.WETH.toLowerCase()) return 18;
+  if (a === TOKEN_ADDRESSES.OKB.toLowerCase()) return 18;
+  if (a === TOKEN_ADDRESSES.WBTC.toLowerCase()) return 8;
+  return null;
+}
+
+function toMinimalUnits(readable: string, decimals: number): string {
+  const s = String(readable).trim();
+  const [whole, frac = ""] = s.split(".");
+  const neg = whole.startsWith("-");
+  const w = neg ? whole.slice(1) : whole;
+  const fracPadded = (frac + "0".repeat(decimals)).slice(0, decimals);
+  const raw = `${w || "0"}${fracPadded}`;
+  const normalized = raw.replace(/^0+/, "") || "0";
+  return neg ? `-${normalized}` : normalized;
 }
 
 export const okxSwapQuote = tool({
@@ -28,7 +51,12 @@ export const okxSwapQuote = tool({
       chainIndex: CHAIN_INDEX,
       fromTokenAddress: resolveToken(fromToken),
       toTokenAddress: resolveToken(toToken),
-      amount: readableAmount,
+      amount: (() => {
+        const fromAddr = resolveToken(fromToken);
+        const d = isNative(fromAddr) ? 18 : getKnownDecimals(fromAddr);
+        if (d == null) throw new Error(`Unknown token decimals for quote: ${fromAddr}`);
+        return toMinimalUnits(readableAmount, d);
+      })(),
     };
     const json = await okxFetch<{ data?: unknown[] }>("/api/v6/dex/aggregator/quote", { params });
     return firstItem(json);
@@ -54,28 +82,38 @@ export const okxSwapFull = tool({
   execute: async ({ fromToken, toToken, readableAmount, walletAddress, accountId, slippage }) => {
     const fromAddr = resolveToken(fromToken);
     const toAddr = resolveToken(toToken);
+    const d = isNative(fromAddr) ? 18 : getKnownDecimals(fromAddr);
+    if (d == null) throw new Error(`Unknown token decimals for swap: ${fromAddr}`);
+    const amountMinimal = toMinimalUnits(readableAmount, d);
 
     // Step 1: If ERC-20 source, get and broadcast approval first
     if (!isNative(fromAddr)) {
       const approveJson = await okxFetch<{
-        data?: Array<{ data: string; gasLimit: string; gasPrice: string; to: string }>;
+        data?: Array<{
+          data: string;
+          gasLimit: string;
+          gasPrice: string;
+          dexContractAddress?: string;
+        }>;
       }>("/api/v6/dex/aggregator/approve-transaction", {
         params: {
           chainIndex: CHAIN_INDEX,
           tokenContractAddress: fromAddr,
-          approveAmount: readableAmount,
+          approveAmount: amountMinimal,
         },
       });
       const approveData = approveJson.data?.[0];
       if (approveData) {
-        const approveUnsigned = await preTransactionUnsignedInfo({
+        const approveUnsigned = await preTransactionUnsignedInfoContractCall({
           accountId,
           chainIndex: XLAYER_CHAIN_INDEX,
           fromAddr: walletAddress,
-          toAddr: approveData.to,
-          amount: "0",
+          contractAddr: fromAddr,
+          amt: "0",
           inputData: approveData.data,
           gasLimit: approveData.gasLimit,
+          aaDexTokenAddr: fromAddr,
+          aaDexTokenAmount: amountMinimal,
         });
         await signAndBroadcast({
           accountId,
@@ -97,7 +135,7 @@ export const okxSwapFull = tool({
         chainIndex: CHAIN_INDEX,
         fromTokenAddress: fromAddr,
         toTokenAddress: toAddr,
-        amount: readableAmount,
+        amount: amountMinimal,
         userWalletAddress: walletAddress,
         slippagePercent: slippage,
       },
@@ -108,14 +146,16 @@ export const okxSwapFull = tool({
     const { tx, routerResult } = swapItem;
 
     // Step 3: Sign and broadcast via TEE
-    const unsignedInfo = await preTransactionUnsignedInfo({
+    const unsignedInfo = await preTransactionUnsignedInfoContractCall({
+      // Use contract-call style unsignedInfo — matches onchainos wallet contract-call path.
       accountId,
       chainIndex: XLAYER_CHAIN_INDEX,
       fromAddr: walletAddress,
-      toAddr: tx.to,
-      amount: tx.value ?? "0",
+      contractAddr: tx.to,
+      amt: tx.value ?? "0",
       inputData: tx.data,
       gasLimit: tx.gas,
+      ...(isNative(fromAddr) ? {} : { aaDexTokenAddr: fromAddr, aaDexTokenAmount: amountMinimal }),
     });
 
     const result = await signAndBroadcast({

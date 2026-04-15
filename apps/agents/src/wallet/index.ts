@@ -177,6 +177,12 @@ export async function akLogin(accountId: string): Promise<WalletSession> {
   sessionCache.set(accountId, session);
   sessionWallMs.set(accountId, Date.now());
 
+  // Some OKX Web3 endpoints (notably DeFi enter/exit) require OK-ACCESS-PROJECT.
+  // If not set via env, hydrate it from the verified agentic wallet session.
+  if (!process.env.OKX_PROJECT_ID && verifyResp.projectId) {
+    process.env.OKX_PROJECT_ID = verifyResp.projectId;
+  }
+
   // Diagnostic: log which addresses OKX associates with this accountId
   if (verifyResp.addressList?.length) {
     const addrs = verifyResp.addressList
@@ -284,6 +290,47 @@ export async function preTransactionUnsignedInfo(params: {
       sessionCert: session.sessionCert,
       ...(params.inputData ? { inputData: params.inputData } : {}),
       ...(params.gasLimit ? { gasLimit: params.gasLimit } : {}),
+    },
+    jwtHeaders(session.accessToken),
+  );
+}
+
+/**
+ * Contract-call flavored unsignedInfo.
+ * The onchainos CLI uses contract-call for agentic wallet execution and it is more reliable than the
+ * fromAddr/toAddr form for complex calldata (DEX swaps, DeFi adapters).
+ *
+ * See onchainos binary strings: `contractAddrinputDataaaDexTokenAddr/priapi/v5/wallet/agentic/pre-transaction/unsignedInfo`.
+ */
+export async function preTransactionUnsignedInfoContractCall(params: {
+  accountId: string;
+  chainIndex: number;
+  fromAddr: string;
+  contractAddr: string;
+  amt: string;
+  inputData: string;
+  gasLimit?: string;
+  aaDexTokenAddr?: string;
+  aaDexTokenAmount?: string;
+}): Promise<PreTxUnsignedInfo> {
+  const session = await getSession(params.accountId);
+
+  return walletPost<PreTxUnsignedInfo>(
+    `${WALLET_PREFIX}/pre-transaction/unsignedInfo`,
+    {
+      chainPath: "m/44/60",
+      chainIndex: params.chainIndex,
+      fromAddr: params.fromAddr,
+      // Some backends require toAddr/amount even for contract-call; mirror contractAddr/amt.
+      toAddr: params.contractAddr,
+      amount: params.amt,
+      contractAddr: params.contractAddr,
+      amt: params.amt,
+      inputData: params.inputData,
+      sessionCert: session.sessionCert,
+      ...(params.gasLimit ? { gasLimit: params.gasLimit } : {}),
+      ...(params.aaDexTokenAddr ? { aaDexTokenAddr: params.aaDexTokenAddr } : {}),
+      ...(params.aaDexTokenAmount ? { aaDexTokenAmount: params.aaDexTokenAmount } : {}),
     },
     jwtHeaders(session.accessToken),
   );
@@ -608,6 +655,22 @@ function normalizeDexBalancePayload(
   for (const r of rows) {
     if (!r || typeof r !== "object") continue;
     const o = r as Record<string, unknown>;
+
+    // Common OKX shape: data: [{ tokenAssets: [{ symbol, balance, ... }, ...] }]
+    const tokenAssets = o.tokenAssets;
+    if (Array.isArray(tokenAssets)) {
+      for (const a of tokenAssets) {
+        if (!a || typeof a !== "object") continue;
+        const ao = a as Record<string, unknown>;
+        const sym = ao.symbol ?? ao.tokenSymbol;
+        const bal = ao.balance;
+        if (sym != null && bal != null) {
+          out.push({ tokenSymbol: String(sym), balance: String(bal) });
+        }
+      }
+      continue;
+    }
+
     const sym = o.symbol ?? o.tokenSymbol;
     const bal = o.balance;
     if (sym != null && bal != null) {
