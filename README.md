@@ -403,6 +403,10 @@ me.samueldanso@gmail.com TG: @samueldanso
 
 ---
 
+## Contributing
+
+Open to contributions. Reach out on TG @samueldanso
+
 ## License
 
 [MIT](LICENSE)
