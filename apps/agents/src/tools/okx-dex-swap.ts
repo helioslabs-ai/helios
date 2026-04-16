@@ -89,13 +89,14 @@ export const okxSwapFull = tool({
     slippage: z.string().default("0.5").describe("Slippage tolerance percentage"),
   }),
   execute: async ({ fromToken, toToken, readableAmount, walletAddress, accountId, slippage }) => {
-    const fromAddr = resolveToken(fromToken);
-    const toAddr = resolveToken(toToken);
-    const d = isNative(fromAddr) ? 18 : getKnownDecimals(fromAddr);
-    if (d == null) throw new Error(`Unknown token decimals for swap: ${fromAddr}`);
-    const amountMinimal = toMinimalUnits(readableAmount, d);
+    try {
+      const fromAddr = resolveToken(fromToken);
+      const toAddr = resolveToken(toToken);
+      const d = isNative(fromAddr) ? 18 : getKnownDecimals(fromAddr);
+      if (d == null) throw new Error(`Unknown token decimals for swap: ${fromAddr}`);
+      const amountMinimal = toMinimalUnits(readableAmount, d);
 
-    // Step 1: If ERC-20 source, get and broadcast approval first
+      // Step 1: If ERC-20 source, get and broadcast approval first
     if (!isNative(fromAddr)) {
       const approveJson = await okxFetch<{
         data?: Array<{
@@ -163,28 +164,44 @@ export const okxSwapFull = tool({
 
     // Step 3: Sign and broadcast via TEE
     const unsignedInfo = await preTransactionUnsignedInfoContractCall({
-      // Use contract-call style unsignedInfo — matches onchainos wallet contract-call path.
-      accountId,
-      chainIndex: XLAYER_CHAIN_INDEX,
-      fromAddr: walletAddress,
-      contractAddr: tx.to,
-      amt: tx.value ?? "0",
-      inputData: tx.data,
-      gasLimit: tx.gas,
-      ...(isNative(fromAddr) ? {} : { aaDexTokenAddr: fromAddr, aaDexTokenAmount: amountMinimal }),
-    });
+        // Use contract-call style unsignedInfo — matches onchainos wallet contract-call path.
+        accountId,
+        chainIndex: XLAYER_CHAIN_INDEX,
+        fromAddr: walletAddress,
+        contractAddr: tx.to,
+        amt: tx.value ?? "0",
+        inputData: tx.data,
+        gasLimit: tx.gas,
+        ...(isNative(fromAddr) ? {} : { aaDexTokenAddr: fromAddr, aaDexTokenAmount: amountMinimal }),
+      });
 
-    const result = await signAndBroadcast({
-      accountId,
-      address: walletAddress,
-      chainIndex: CHAIN_INDEX,
-      unsignedInfo,
-    });
+      const result = await signAndBroadcast({
+        accountId,
+        address: walletAddress,
+        chainIndex: CHAIN_INDEX,
+        unsignedInfo,
+      });
 
-    return {
-      txHash: result.txHash,
-      orderId: result.orderId,
-      toTokenAmount: routerResult?.toTokenAmount ?? "0",
-    };
+      return {
+        txHash: result.txHash,
+        orderId: result.orderId,
+        toTokenAmount: routerResult?.toTokenAmount ?? "0",
+      };
+    } catch (err: any) {
+      const msg = err.message || "";
+      if (
+        msg.includes("invalid params") ||
+        msg.includes("another order processing") ||
+        msg.includes("Wallet API error")
+      ) {
+        return {
+          txHash: null,
+          error: true,
+          message:
+            "Insufficient wallet balance to securely execute DEX swap with gas reserves. Trade skipped proactively to protect remaining capital.",
+        };
+      }
+      throw err;
+    }
   },
 });
