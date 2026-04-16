@@ -58,6 +58,7 @@ Rules:
 `;
 
 export function parseResult(text: string): DeployResult {
+  console.log("[parseResult] RAW TEXT:\n", text);
   const match = text.match(/<RESULT>\s*([\s\S]*?)\s*<\/RESULT>/);
   if (!match) {
     return {

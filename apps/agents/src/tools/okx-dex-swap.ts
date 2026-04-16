@@ -56,6 +56,7 @@ export const okxSwapQuote = tool({
   }),
   execute: async ({ fromToken, toToken, readableAmount }) => {
     const params: Record<string, string | undefined> = {
+      chainId: CHAIN_INDEX,
       chainIndex: CHAIN_INDEX,
       fromTokenAddress: resolveToken(fromToken),
       toTokenAddress: resolveToken(toToken),
@@ -105,6 +106,7 @@ export const okxSwapFull = tool({
         }>;
       }>("/api/v6/dex/aggregator/approve-transaction", {
         params: {
+          chainId: CHAIN_INDEX,
           chainIndex: CHAIN_INDEX,
           tokenContractAddress: fromAddr,
           approveAmount: amountMinimal,
@@ -140,11 +142,13 @@ export const okxSwapFull = tool({
       }>;
     }>("/api/v6/dex/aggregator/swap", {
       params: {
+        chainId: CHAIN_INDEX,
         chainIndex: CHAIN_INDEX,
         fromTokenAddress: fromAddr,
         toTokenAddress: toAddr,
         amount: amountMinimal,
         userWalletAddress: walletAddress,
+        slippage: slippage,
         slippagePercent: slippage,
       },
     });
