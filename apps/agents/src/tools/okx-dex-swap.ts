@@ -131,6 +131,10 @@ export const okxSwapFull = tool({
           chainIndex: CHAIN_INDEX,
           unsignedInfo: approveUnsigned,
         });
+
+        // Wait for the approval transaction to be confirmed on-chain before swapping
+        // X Layer block time is ~3s; we wait 5s to be safe.
+        await new Promise((resolve) => setTimeout(resolve, 5000));
       }
     }
 
