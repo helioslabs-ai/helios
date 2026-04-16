@@ -8,6 +8,14 @@ const EVM_NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 const XLAYER_CHAIN_INDEX = 196;
 
 function resolveToken(t: string): string {
+  const upper = t.toUpperCase();
+  if (upper === "NATIVE") return EVM_NATIVE;
+  if (upper === "USDC" || upper === "XLAYER_USDC") return XLAYER_USDC.toLowerCase();
+  if (upper === "USDG" || upper === "XLAYER_USDG") return XLAYER_USDG.toLowerCase();
+  if (upper === "WOKB") return TOKEN_ADDRESSES.WOKB.toLowerCase();
+  if (upper === "WETH") return TOKEN_ADDRESSES.WETH.toLowerCase();
+  if (upper === "OKB") return TOKEN_ADDRESSES.OKB.toLowerCase();
+  if (upper === "WBTC") return TOKEN_ADDRESSES.WBTC.toLowerCase();
   return t === "native" ? EVM_NATIVE : t.toLowerCase();
 }
 
@@ -15,7 +23,7 @@ function isNative(addr: string): boolean {
   return addr.toLowerCase() === EVM_NATIVE;
 }
 
-function getKnownDecimals(addr: string): number | null {
+function getKnownDecimals(addr: string): number {
   const a = addr.toLowerCase();
   if (a === XLAYER_USDC.toLowerCase()) return 6;
   if (a === XLAYER_USDG.toLowerCase()) return 6;
@@ -23,7 +31,7 @@ function getKnownDecimals(addr: string): number | null {
   if (a === TOKEN_ADDRESSES.WETH.toLowerCase()) return 18;
   if (a === TOKEN_ADDRESSES.OKB.toLowerCase()) return 18;
   if (a === TOKEN_ADDRESSES.WBTC.toLowerCase()) return 8;
-  return null;
+  return 18; // Default to 18 decimals instead of throwing
 }
 
 function toMinimalUnits(readable: string, decimals: number): string {

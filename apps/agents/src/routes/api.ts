@@ -253,7 +253,7 @@ api.get("/economy", async (c) => {
   return c.json({ ...economyFromFiles(), realizedPnlUsdc });
 });
 
-api.get("/positions", async (c) => {
+async function getPositionsData(): Promise<{ openPositions: Position[]; closedPositions: Position[]; yieldPosition: YieldPosition | null }> {
   const yieldFromFile = readJson<YieldPosition | null>("yield.json", null);
   const db = getDb();
 
@@ -277,7 +277,7 @@ api.get("/positions", async (c) => {
           };
         }
       } catch (yieldErr) {
-        console.warn("[API] /positions yield_state read failed:", yieldErr);
+        console.warn("[API] yield_state read failed:", yieldErr);
       }
       const mapped: Position[] = rows.map((row) => ({
         token: row.token,
@@ -290,28 +290,27 @@ api.get("/positions", async (c) => {
         exitedAt: row.closedAt?.toISOString(),
         status: row.status === "closed" ? "closed" : "open",
       }));
-      return c.json({
+      return {
         openPositions: mapped.filter((p) => p.status === "open"),
         closedPositions: mapped.filter((p) => p.status === "closed"),
         yieldPosition,
-      });
+      };
     } catch (err) {
-      console.warn("[API] /positions DB read failed, using files:", err);
-      const localPositions = readJson<Position[]>("positions.json", []);
-      return c.json({
-        openPositions: localPositions.filter((p) => p.status === "open"),
-        closedPositions: localPositions.filter((p) => p.status === "closed"),
-        yieldPosition: yieldFromFile,
-      });
+      console.warn("[API] getPositionsData DB read failed, using files:", err);
     }
   }
 
   const localPositions = readJson<Position[]>("positions.json", []);
-  return c.json({
+  return {
     openPositions: localPositions.filter((p) => p.status === "open"),
     closedPositions: localPositions.filter((p) => p.status === "closed"),
     yieldPosition: yieldFromFile,
-  });
+  };
+}
+
+api.get("/positions", async (c) => {
+  const data = await getPositionsData();
+  return c.json(data);
 });
 
 api.get("/logs", async (c) => {
@@ -492,8 +491,8 @@ api.get("/sse", (c) => {
   return streamSSE(c, async (stream) => {
     while (true) {
       const state = getState();
-      const positions = readJson<Position[]>("positions.json", []);
       const db = getDb();
+      const posData = await getPositionsData();
 
       let recentCycles: CycleSummary[] = [];
       let recentTransactions: AgentTxRow[] = [];
@@ -521,7 +520,7 @@ api.get("/sse", (c) => {
           state,
           recentCycles,
           recentTransactions,
-          openPositions: positions.filter((p) => p.status === "open"),
+          openPositions: posData.openPositions,
         }),
         event: "state",
       });

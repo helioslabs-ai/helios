@@ -261,7 +261,6 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
 
 					{/* Stats row */}
 					<div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-px rounded-lg overflow-hidden border border-[#1a1c24]">
-						<StatCell label="Total Cycles" value={economy.totalCycles.toString()} />
 						<StatCell
 							label="Onchain Txns"
 							value={(
@@ -270,12 +269,6 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
 								economy.totalX402Txns
 							).toString()}
 							sub="X Layer"
-						/>
-						<StatCell
-							label="x402 Paid"
-							value={`$${economy.totalX402PaidUsdc}`}
-							sub="USDG"
-							accent
 						/>
 						<StatCell
 							label="Portfolio"
@@ -287,17 +280,23 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
 							value={positions.openPositions.length.toString()}
 						/>
 						<StatCell
+							label="x402 Paid"
+							value={`$${economy.totalX402PaidUsdc}`}
+							sub="USDG"
+							accent
+						/>
+						<StatCell
 							label="PnL / Return"
 							value={`${realizedPnl >= 0 ? "+" : ""}$${realizedPnl.toFixed(4)}`}
 							sub="realized"
-							positive={realizedPnl > 0}
-							danger={realizedPnl < 0}
+							positive
 						/>
 						<StatCell
 							label="No-Alpha Streak"
 							value={status.consecutiveNoAlpha.toString()}
 							sub="consecutive"
 						/>
+						<StatCell label="Total Cycles" value={economy.totalCycles.toString()} />
 						<StatCell
 							label="Next Cycle"
 							value={formatNextCycle(status.lastCycleAt)}
