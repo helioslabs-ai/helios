@@ -373,7 +373,9 @@ export async function runCycle(configs: AgentConfigs): Promise<CycleSummary> {
         reasoning,
         txHashes,
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("[Curator DB] Failed to insert cycle (reasoning will not show in UI):", err);
+      });
   }
 
   // A10: check session loss — halt if pnlUsdc < -MAX_SESSION_LOSS_USD
