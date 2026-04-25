@@ -119,10 +119,6 @@ function formatNextCycle(lastCycleAt: string | null): string {
   return `${mins}m ${secs}s`;
 }
 
-function shouldShowInternalErrors(): boolean {
-  return process.env.NEXT_PUBLIC_SHOW_INTERNAL_ERRORS === "true";
-}
-
 // ── Root ──────────────────────────────────────────────────────────────────────
 
 export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Props) {
@@ -148,6 +144,14 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
   }, []);
 
   const { status, agents, economy, cycles, positions, transactions } = data;
+
+  // Internal-only: don't show the circuit breaker state publicly.
+  useEffect(() => {
+    if (!status.circuitBreaker.halted) return;
+    const reason = status.circuitBreaker.reason ? ` (${status.circuitBreaker.reason})` : "";
+    console.warn(`[helios] circuit breaker halted${reason}`);
+  }, [status.circuitBreaker.halted, status.circuitBreaker.reason]);
+
   const lastCycle =
     cycles.length > 0
       ? [...cycles].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())[0]
@@ -236,27 +240,6 @@ export function HeliosDashboard({ initial, leaderboard: initialLeaderboard }: Pr
             trades, pay each other, and compound capital in a self-sustaining DeFi economy via x402
             on X Layer. Capital on autopilot.
           </p>
-
-          {/* Circuit breaker */}
-          {status.circuitBreaker.halted && (
-            <div className="mb-6 flex items-center gap-3 rounded-lg border border-[#ef4444]/30 bg-[#ef4444]/8 px-4 py-3 animate-fade-up">
-              <span className="size-2 rounded-full bg-[#ef4444] animate-blink-red shrink-0" />
-              <span className="text-xs font-mono text-[#ef4444] font-semibold uppercase tracking-widest">
-                Swarm Paused
-              </span>
-              <span className="text-xs font-mono text-[#ef4444]/70 ml-2">
-                — Safety halt engaged.
-              </span>
-              {shouldShowInternalErrors() && status.circuitBreaker.reason && (
-                <span
-                  className="text-xs font-mono text-[#ef4444]/70 ml-2"
-                  title={status.circuitBreaker.reason}
-                >
-                  Reason: {status.circuitBreaker.reason}
-                </span>
-              )}
-            </div>
-          )}
 
           {/* Stats row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-px rounded-lg overflow-hidden border border-[#1a1c24]">
